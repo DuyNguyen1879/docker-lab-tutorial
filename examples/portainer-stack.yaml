@@ -1,0 +1,26 @@
+version: "3"
+services:
+
+  gui:
+    image: docker.io/portainer/portainer:latest
+    ports:
+      - "9000:9000"
+    volumes:
+      - portainer-data-volume:/data
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    deploy:
+      mode: replicated
+      replicas: 1
+      update_config:
+        parallelism: 1
+        delay: 30s
+        failure_action: pause
+        max_failure_ratio: 0
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints: [node.role == manager]
+
+volumes:
+   portainer-data-volume:
+     driver: local

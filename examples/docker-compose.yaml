@@ -1,0 +1,39 @@
+version: '2'
+
+services:
+  mariadb:
+    image: bitnami/mariadb:latest
+    environment:
+      MARIADB_ROOT_PASSWORD: bitnami123
+      MARIADB_DATABASE: workpress
+      MARIADB_USER: bitnami
+      MARIADB_PASSWORD: bitnami123
+    volumes:
+      - mariadb-data:/bitnami/mariadb
+  wordpress:
+    image: bitnami/wordpress:latest
+    environment:
+      MARIADB_HOST: mariadb
+      MARIADB_PORT: 3306
+      WORDPRESS_DATABASE_NAME: workpress
+      WORDPRESS_DATABASE_USER: bitnami
+      WORDPRESS_DATABASE_PASSWORD: bitnami123
+    depends_on:
+      - mariadb
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - wordpress-data:/bitnami/wordpress
+      - apache-data:/bitnami/apache
+      - php-data:/bitnami/php
+
+volumes:
+  mariadb-data:
+    driver: local
+  wordpress-data:
+    driver: local
+  apache-data:
+    driver: local
+  php-data:
+    driver: local

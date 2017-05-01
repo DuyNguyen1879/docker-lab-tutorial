@@ -1,13 +1,15 @@
-## Start with containers
+# Start with containers
 Docker allows to run applications inside Linux Containers.
 
   * [Running an application](#running-an-application)
   * [Working inside a container](#working-inside-a-container)
   * [Inspecting a container](#inspecting-a-container)
 
+Docker provides a command line client to interact with Docker engine via restfull APIs. If you need to access the Docker engine remotely, you need to enable the engine to listen on tcp socket port 2375 for unsecure access and port 2376 for encrypted TLS access.
+Beware that the default setup provides un-encrypted and un-authenticated direct access to the Docker daemon and should be secured either using the built in HTTPS encrypted socket, or by putting a secure web proxy in front of it.
 
-### Running an application
-Docker provides a command-line client to interact with Docker Engine. Run an application by using the Docker client
+## Running an application
+Run an application by using the Docker client
 ```
 # docker run busybox echo 'Hello Docker'
 Hello Docker
@@ -90,7 +92,7 @@ Start a container and remove it when the container exits
 # docker run --rm -it busybox
 ```
 
-### Working inside a container
+## Working inside a container
 Once you run a container in interactive mode, you are presented with a shell prompt and you can start commands from inside the container. For example, let's to install the ``nmap`` tool inside a CentOS base image
 ```
 # docker run -it --name centos_bash centos
@@ -117,7 +119,7 @@ Host is up (0.0045s latency).
 ...
 ```
 
-### Inspecting a container
+## Inspecting a container
 To inspect a container, use the ``inspect`` command
 ```
 # docker inspect webserver
@@ -182,42 +184,30 @@ exit
 ```
 The commands just run from the bash shell, running inside the container, show you several things. The container holds a Debian GNU/Linux 8 system. The process table shows that the httpd command is process ID 1 followed by other httpd processes, ``/bin/bash`` is PID 90 and ``ps -ef`` is PID 94. Processes running in the host process table cannot be seen from within the container. There is no separate kernel running in the container since ``uname -r`` shows the host kernel: ``3.10.0-229.1.2.el7.x86_64``. Viewing memory with ``free -m`` command shows the available memory on the host although the container can be limited.
 
-### Main Docker commands
-
-The following table, taken from the "*docker help*" command, provides a quick summary  
+## Main Docker commands
+The following table, taken from the "*docker help*" command, provides a quick summary of Docker command for working with containers 
 
 | Command  |  Description
 |----------|-----------------------------------------------------------------------|
 | attach   | Attach to a running container
-| build    | Build an image from a Dockerfile
 | commit   | Create a new image from a container's changes
 | cp       | Copy files/folders from a container's filesystem to the host path
 | diff     | Inspect changes on a container's filesystem
 | events   | Get real time events from the server
 | export   | Stream the contents of a container as a tar archive
-| history  | Show the history of an image
-| images   | List images
-| import   | Create a new filesystem image from the contents of a tarball
 | info     | Display system-wide information
 | inspect  | Return low-level information on a container
 | kill     | Kill a running container
 | load     | Load an image from a tar archive
-| login    | Register or log in to the Docker registry server
 | logs     | Fetch the logs of a container
 | port     | Lookup the public-facing port that is NAT-ed to PRIVATE_PORT
 | pause    | Pause all processes within a container
 | ps       | List containers
-| pull     | Pull an image or a repository from a Docker registry server
-| push     | Push an image or a repository to a Docker registry server
 | restart  | Restart a running container
 | rm       | Remove one or more containers
-| rmi      | Remove one or more images
 | run      | Run a command in a new container
-| save     | Save an image to a tar archive
-| search   | Search for an image on the Docker Hub
 | start    | Start a stopped container
 | stop     | Stop a running container
-| tag      | Tag an image into a repository
 | top      | Lookup the running processes of a container
 | unpause  | Unpause a paused container
 | version  | Show the Docker version information

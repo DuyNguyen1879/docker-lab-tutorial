@@ -1,14 +1,14 @@
 # Start with containers
 Docker allows to run applications inside Linux Containers.
 
-  * [Running an application](#running-an-application)
+  * [Running a container](#running-a-container)
   * [Working inside a container](#working-inside-a-container)
   * [Inspecting a container](#inspecting-a-container)
 
 Docker provides a command line client to interact with Docker engine via restfull APIs. If you need to access the Docker engine remotely, you need to enable the engine to listen on tcp socket port 2375 for unsecure access and port 2376 for encrypted TLS access.
 Beware that the default setup provides un-encrypted and un-authenticated direct access to the Docker daemon and should be secured either using the built in HTTPS encrypted socket, or by putting a secure web proxy in front of it.
 
-## Running an application
+## Running a container
 Run an application by using the Docker client
 ```
 # docker run busybox echo 'Hello Docker'
@@ -50,14 +50,26 @@ Run a container in daemon mode on a defined container port
 
 Run a container in daemon mode and expose the container to a defined host port
 ```
-# docker run -d -p 5000:80 httpd
-# curl localhost:80
+# docker run -d -p 4000:80 httpd
+
+# netstat -natp | grep 4000
+tcp6       0      0 :::4000                 :::*                    LISTEN      15140/docker-proxy-
+
+# curl localhost:4000
 <html><body><h1>It works!</h1></body></html>
+```
+
+Expose all ports as defined in the container. All ports will be exposed to random ports
+```
+# docker run -d -P nginx
+docker ps
+CONTAINER ID  IMAGE   COMMAND      CREATED     STATUS        PORTS                NAMES
+9bfe5c2b1769  nginx   "nginx -g"   4 minutes   Up 4 minutes  0.0.0.0:32769->80/tcp, 0.0.0.0:32768->443/tcp
 ```
 
 Specify the container name
 ```
-# docker run -d -p 5000:80 --name webserver httpd
+# docker run -d -p 4000:80 --name webserver httpd
 ```
 
 List running containers
@@ -65,6 +77,14 @@ List running containers
 # docker ps
 CONTAINER ID  IMAGE   COMMAND             CREATED         STATUS        PORTS                NAMES
 f312f456b54f  httpd   "httpd-foreground"  10 seconds ago  Up 9 seconds  0.0.0.0:80->80/tcp   webserver
+```
+
+List all containers
+```
+# docker ps -a
+CONTAINER ID  IMAGE     COMMAND             CREATED         STATUS        PORTS                NAMES
+f312f456b54f  httpd     "httpd-foreground"  10 seconds ago  Up 9 seconds  0.0.0.0:80->80/tcp   webserver
+027758d7be6b  wordpress "/app-entrypoint.sh n"   12 days ago          Exited (1) 6 days ago  wordpress
 ```
 
 Control a container
@@ -183,6 +203,26 @@ exit
 #
 ```
 The commands just run from the bash shell, running inside the container, show you several things. The container holds a Debian GNU/Linux 8 system. The process table shows that the httpd command is process ID 1 followed by other httpd processes, ``/bin/bash`` is PID 90 and ``ps -ef`` is PID 94. Processes running in the host process table cannot be seen from within the container. There is no separate kernel running in the container since ``uname -r`` shows the host kernel: ``3.10.0-229.1.2.el7.x86_64``. Viewing memory with ``free -m`` command shows the available memory on the host although the container can be limited.
+
+How to run a C program inside a container?
+```
+# docker pull centos:latest
+
+# docker run -it centos
+[root@f679ab7a4bea /]# yum update -y
+[root@f679ab7a4bea /]# yum install -y gcc
+[root@f679ab7a4bea /]# vi hello.c
+int main() {
+  printf("Hello Docker\n");
+}
+[root@f679ab7a4bea /]#  gcc -w hello.c -o hello
+[root@f679ab7a4bea /]# ls -lrt hello*
+-rw-r--r-- 1 root root   41 May  1 21:08 hello.c
+-rwxr-xr-x 1 root root 8512 May  1 21:17 hello
+
+[root@f679ab7a4bea /]# ./hello
+Hello Docker
+```
 
 ## Main Docker commands
 The following table, taken from the "*docker help*" command, provides a quick summary of Docker command for working with containers 

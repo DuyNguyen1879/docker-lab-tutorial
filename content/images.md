@@ -333,8 +333,8 @@ Change to the build context and build the image
 total 8
 -rw-r--r-- 1 root root 582 May 24 15:42 Dockerfile
 -rw-r--r-- 1 root root  67 May 24 16:09 index.html
-#
-# docker run -d -p 80:80 --name web myapache
+# docker build -t myapache:centos .
+# docker run -d -p 80:80 --name web myapache:centos
 # docker images
 REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
 myapache            latest              b5cfdf80a528        8 minutes ago       246.8 MB
@@ -353,8 +353,152 @@ Start a container based on that image and check it works
 
 General guidelines
 
-1. Containers should be ephemeral
-2. Avoid installing unnecessary packages
-3. Run only one process per container
-4. Minimize the number of layers
-5. Be aware of the build cache
+1. Avoid installing unnecessary packages
+2. Run only one process per container
+3. Minimize the number of layers
+
+## Building C Applications
+In this example, we're going to create a simple docker image running a C application. This is only for demo purpouse.
+Move to the app directory and create your C program
+
+    mkdir mycapp
+    cd mycapp
+    vi hello.c
+    int main() {
+      printf("Hello Docker\n");
+    }
+
+Create a Dockerfile like the following
+
+    # A simple C application
+    # Pull a GCC image from the Docker Hub registry
+    FROM gcc:latest
+    MAINTAINER Tom Cat tom.cat@warnerbros.com
+    LABEL Version 1.0
+    USER root
+    COPY ./hello.c /usr/src/hello.c
+    WORKDIR /usr/src
+    # Compile the C application
+    RUN gcc -w hello.c -o hello
+    # Start the C application at runtime
+    CMD ["./hello"]
+
+Build your image
+
+    docker build -t capp:1.0 .
+    docker images
+    REPOSITORY      TAG                 IMAGE ID            CREATED              SIZE
+    capp            1.0                 70ab671e4cb1        14 seconds ago       1.49 GB
+
+Run the application
+
+    docker run -it capp:1.0
+    Hello Docker
+
+Please, note the size of 1.49 GB for the above image. This is because we compiled un image including the complete GCC envinronment. Absolutely, this is not the best way to build C based applications.
+
+## Building Java Applications
+In this section, we're going to build a simple Hello World Java application.
+Move to the app directory and create your Java program
+
+    mkdir myjapp
+    cd myjapp
+    vi hello.java
+    class hello {
+      public static void main(String []args) {
+      System.out.println("Hello Java");
+      }
+    }
+
+Create a Dockerfile like the following
+
+    # A simple JAVA application
+    # Pull a JAVA image from the Docker Hub registry
+    FROM java:latest
+    MAINTAINER Tom Cat tom.cat@warnerbros.com
+    LABEL Version 1.0
+    USER root
+    COPY ./hello.java /usr/src/hello.java
+    WORKDIR /usr/src
+    # Compile the JAVA application
+    RUN javac hello.java 
+    # Start the JAVA application at runtime
+    CMD  ["java", "hello"]
+
+Build your image
+
+    docker build -t japp:1.0 .
+    docker images
+    REPOSITORY           TAG          IMAGE ID            CREATED             SIZE
+    japp                 1.0          553c12090fab        22 seconds ago      643.1 MB
+
+Run the application
+
+    docker run -it japp:1.0
+    Hello Java
+
+## Building an application server
+In this section, we're going to create an application server image based on Tomcat.
+Move to the app directory
+
+    mkdir taas
+    cd taas
+
+and create a Dockerfile like the following
+
+```
+# Create the image from the latest centos image
+FROM centos:latest
+
+LABEL Version 1.0
+MAINTAINER kalise <https://github.com/kalise/>
+
+ENV TOMCAT='tomcat-7' \
+    TOMCAT_VERSION='7.0.75' \
+    JAVA_VERSION='1.7.0' \
+    USER_NAME='user' \
+    INSTANCE_NAME='instance'
+
+# Install dependencies
+RUN yum update -y && yum install -y wget gzip tar
+
+# Install JDK
+RUN yum install -y java-${JAVA_VERSION}-openjdk-devel && \
+yum clean all
+
+# Install Tomcat
+RUN wget --no-cookies http://archive.apache.org/dist/tomcat/${TOMCAT}/v${TOMCAT_VERSION}/bin/apache-tomcat-${TOMCAT_VERSION}.tar.gz -O /tmp/tomcat.tgz && \
+tar xzvf /tmp/tomcat.tgz -C /opt && \
+ln -s  /opt/apache-tomcat-${TOMCAT_VERSION} /opt/tomcat && \
+rm /tmp/tomcat.tgz
+
+# Add the tomcat manager users file
+ADD ./tomcat-users.xml /opt/tomcat/conf/
+
+# Expose HTTP and AJP ports
+EXPOSE 8080 8009
+
+# Mount external volumes for logs and webapps
+VOLUME ["/opt/tomcat/webapps", "/opt/tomcat/logs"]
+
+ENTRYPOINT ["/opt/tomcat/bin/catalina.sh", "run"]
+```
+
+In the same directory, create the Tomcat users ``tomcat-users.xml`` file as following
+```
+<?xml version='1.0' encoding='utf-8'?>
+<tomcat-users>
+  <role rolename="manager-gui"/>
+  <user username="tomcat" password="tomcat" roles="tomcat, manager-gui"/>
+</tomcat-users>
+```
+
+Compile the images
+
+    docker build -t taas:1.0 .
+    
+Run the container
+
+    docker run -d -p 8080:8080 taas:1.0
+    
+Point the browser to the exposed port and login to the Tomcat application server.

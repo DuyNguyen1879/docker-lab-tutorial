@@ -10,10 +10,6 @@ Swarm Node lets to have a complete all-built-in Docker cluster solution includin
 
 Details how to use Swarm Mode for deploying application can be found on Docker docs.
 
-Here the setup
-
-![](../img/swarm-setup.png?raw=true)
-
 Our cluster is made of one master node and two worker nodes. Please, note that in Swarm Mode, a node can be master and worker at same time. Multiple masters, with a minimum of three are recommended in production for high availability reasons. Our setup uses a physical front network for accessing the applications and a separate physical network for clustering.
 
 ## Setup the Swarm

@@ -619,15 +619,11 @@ Please, note that routing mesh is the default option. If you need your service t
           --replicas 1 \
           --name nodejs \
           --publish mode=host,target=8080,published=80 \
-          --constraint 'node.role==worker' \
+          --constraint 'node.hostname==node01' \
           kalise/nodejs-web-app:latest
-
-[root@swarm00 ~]# docker service ps nodejs
-ID            NAME      IMAGE                         NODE     DESIRED STATE  CURRENT STATE          ERROR  PORTS
-ml09rgqmxshp  nodejs.1  kalise/nodejs-web-app:latest  swarm01  Running        Running 7 minutes ago         *:80->8080/tcp
 ```
 
-We can see only worker node running the service is exposing the port
+We can see only worker node ``node01`` running the service is exposing the port
 ```
 [root@swarm00 ~]# netstat -natp | grep 80
 [root@swarm00 ~]#

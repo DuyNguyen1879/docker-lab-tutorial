@@ -4,6 +4,7 @@ Swarm Node lets to have a complete all-built-in Docker cluster solution includin
   * [Setup the Swarm](#setup-the-swarm)
   * [Swarm Networking](#swarm-networking)
   * [Deploying Services](#deploying-services)
+  * [Scaling Services](#scaling-services)
   * [Service Failover](#service-failover)
   * [Service Networks](#service-networks)
   * [Service Discovery](#service-discovery)
@@ -484,8 +485,9 @@ FWM  263 rr
   -> 10.255.0.7:0                 Masq    1      0          0
 ```
 
-The configuration above is telling the IPVS load balancer to forward requests to the IP ``10.255.0.7`` that is the IP of the nodejs container on the other worker node. It’s the only backend server for our load balancer. Requests reach the backend via the overlay network.
+The configuration above is telling the IPVS load balancer to forward requests to the IP ``10.255.0.7`` that is the IP of the nodejs container on the other worker node. It’s the only backend server for our internal load balancer. Requests reach the backend via the overlay network.
 
+## Scaling Services
 What happens when scaling the service to have more than one container? Swarm Mode has the feature to scale out the containers backing a service. Let's to scale our service to have 2 containers
 
 On the master node,

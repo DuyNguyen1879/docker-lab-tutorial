@@ -5,7 +5,7 @@ Swarm Node lets to have a complete all-built-in Docker cluster solution includin
   * [Swarm Networking](#swarm-networking)
   * [Deploying Services](#deploying-services)
   * [Scaling Services](#scaling-services)
-  * [Routing Mesh](#srouting-mesh)
+  * [Routing Mesh](#routing-mesh)
   * [Service Failover](#service-failover)
   * [Service Networks](#service-networks)
   * [Service Discovery](#service-discovery)

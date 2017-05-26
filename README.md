@@ -33,6 +33,8 @@ This is a lab tutorial to Docker and Linux containers. It covers theoretical bac
      * [Setup the Swarm](./content/swarm-mode.md#setup-the-swarm)
      * [Swarm Networking](./content/swarm-mode.md#swarm-networking)
      * [Deploying Services](./content/swarm-mode.md#deploying-services)
+     * [Scaling Services](./content/swarm-mode.md#scaling-services)
+     * [Routing Mesh](./content/swarm-mode.md#routing-mesh)
      * [Service Failover](./content/swarm-mode.md#service-failover)
      * [Service Networks](./content/swarm-mode.md#service-networks)
      * [Service Discovery](./content/swarm-mode.md#service-discovery)

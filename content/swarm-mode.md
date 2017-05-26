@@ -1084,10 +1084,6 @@ Destination     Gateway         Genmask         Flags   MSS Window  irtt Iface
 172.30.0.0      0.0.0.0         255.255.255.0   U         0 0          0 eth2
 ```
 
-We can see how the proxy container is linked to the network layout
-
-![](../img/swarm-layout-03.png?raw=true)
-
 A request for ``http://10.10.10.60:80`` will follow this path:
 
    1. The NAT chain of the host interface route the request to the ingress sandbox on the bridge gateway

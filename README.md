@@ -36,6 +36,7 @@ This is a lab tutorial to Docker and Linux containers. It covers theoretical bac
      * [Service Failover](./content/swarm-mode.md#service-failover)
      * [Service Networks](./content/swarm-mode.md#service-networks)
      * [Service Discovery](./content/swarm-mode.md#service-discovery)
+     * [High Availability](./content/swarm-mode.md#high-availability)
 
 7. [Applications Deployment](./content/applications.md)
       * [Application Stacks](./content/applications.md#applications-stacks)

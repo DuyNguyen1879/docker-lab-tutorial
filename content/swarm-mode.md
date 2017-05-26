@@ -557,6 +557,33 @@ Here the layout
 ## Routing Mesh
 All the nodes partecipating in a swarm, are able to route incoming requests from their Ingress Sandbox to the specified service, no matter which is the node running the service. This feature is called "**Routing Mesh**" and it is used to expose a service to the external world. For example, a request to the exposed nodejs service ``curl http://swarm00:80`` or ``curl http://swarm02:80`` will be handled by the IPVS on the nodes ``swarm00`` and ``swarm02`` respectively.
 
+```
+[root@swarm00 ~]# netstat -natp | grep 80
+tcp6       0      0 :::80                   :::*                    LISTEN      488/docker-proxy
+
+[root@swarm00 ~]# curl 10.10.10.60:80
+Hello World! from 10.255.0.7
+```
+
+and
+```
+[root@swarm01 ~]# netstat -natp | grep 80
+tcp6       0      0 :::80                   :::*                    LISTEN      488/docker-proxy
+
+[root@swarm01 ~]# curl 10.10.10.61:80
+Hello World! from 10.255.0.7
+```
+
+and
+```
+[root@swarm02 ~]# netstat -natp | grep 80
+tcp6       0      0 :::80                   :::*                    LISTEN      488/docker-proxy
+
+[root@swarm02 ~]# curl 10.10.10.62:80
+Hello World! from 10.255.0.7
+```
+
+
 Here the layout
 
 ![](../img/swarm-layout-03.png?raw=true)

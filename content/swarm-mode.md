@@ -19,7 +19,7 @@ On all the htree nodes, install the Docker engine. The following ports must be o
   * TCP and UDP port 7946 for communication among nodes
   * UDP port 4789 for overlay network traffic
 
-Also TCP port 2375  and 2376 (for TLS) should be opened on the front network for Docker API service in case of remote mamangement. Make sure the Docker engine daemon is started on the host machines.
+Also TCP port 2375  and 2376 (for TLS) should be opened on the front network for Docker API service in case of remote management. Make sure the Docker engine daemon is started on the host machines.
 
 Login tho the master node and create the swarm
 ```

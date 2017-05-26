@@ -7,26 +7,34 @@ Swarm Node lets to have a complete all-built-in Docker cluster solution includin
   * [Service Failover](#service-failover)
   * [Service Networks](#service-networks)
   * [Service Discovery](#service-discovery)
+  * [High Availability](#high-availability)
 
 Details how to use Swarm Mode for deploying application can be found on Docker docs.
 
-Our cluster is made of one master node and two worker nodes. Please, note that in Swarm Mode, a node can be master and worker at same time. Multiple masters, with a minimum of three are recommended in production for high availability reasons. Our setup uses a physical front network for accessing the applications and a separate physical network for clustering.
+Initially, our cluster is made of three nodes: one master and two workers. Please, note that in Swarm Mode, a node can be master and worker at same time. Multiple masters, with a minimum of three are recommended in production for high availability reasons. Our setup uses a physical front network for accessing the applications and a separate physical back network for clustering.
 
 ## Setup the Swarm
-On all the htree nodes, install the Docker engine. The following ports must be opened on the cluster network:
+On all the three nodes, install the Docker engine. The following ports must be opened on the cluster back network:
 
   * TCP port 2377 for cluster management communications
   * TCP and UDP port 7946 for communication among nodes
   * UDP port 4789 for overlay network traffic
 
-Also TCP port 2375  and 2376 (for TLS) should be opened on the front network for Docker API service in case of remote management. Make sure the Docker engine daemon is started on the host machines.
+Also TCP port 2375 and 2376 (for TLS) should be opened on the front network for Docker API service in case of remote management.
+
+Make sure the Docker engine daemon is started on all the host machines
+```
+[root@swarm00 ~]# systemctl start docker
+[root@swarm00 ~]# systemctl enable docker
+[root@swarm00 ~]# systemctl status docker
+```
 
 Login tho the master node and create the swarm
 ```
 [root@swarm00 ~]# docker swarm init --advertise-addr ens33
 ```
 
-The ``--advertise-addr ens33`` option tells to advertise on the cluster network attached to physical interface ``ens33``. The other nodes in the swarm must be able to access the manager via this interface.
+The ``--advertise-addr ens33`` option tells to advertise on the cluster back network attached to physical interface ``ens33``. The other nodes in the swarm must be able to access the manager via this interface.
 
 Check the swarm node status
 ```
@@ -1196,5 +1204,69 @@ To get the VIP of a service, inspect it
                 }
             ]
 ...
+```
+
+## High Availability
+Swarm manager nodes use the [Raft](https://raft.github.io/) consensus algorithm to manage the swarm state. Raft requires a majority of managers, also called the quorum, to agree on proposed updates to the swarm and storing the same consistent state across all the manager nodes.
+
+A Swarm cluster with only a master node is a single point of failure. An odd number of managers in the swarm cluster is required to support manager node failures. Having an odd number of managers ensures that during a network partition, the quorum remains available to process requests when an outage occurs and the cluster is partitioned into two separate sets. Quorum is not guaranteed when more than two network partitions exist. Raft tolerates up to (N-1)/2 failures and requires a majority or quorum of (N/2)+1 members to agree on values proposed to the cluster.
+
+Worker node can be promoted to manager role as following
+```
+[root@swarm00 ~]# docker node promote swarm01 swarm02
+
+[root@swarm00 ~]# docker node list
+
+ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
+3kru4v3w3lezys0tc9cnoczou *  swarm00   Ready   Active        Leader
+e2kqucdbmkzm5ks6s2pciyg9v    swarm01   Ready   Active        Reachable
+mdmnfom70hh86go8up5zl272y    swarm02   Ready   Active        Reachable
+```
+
+Other nodes can be added as manager by getting the token from an existing manager
+```
+[root@swarm00 ~]# docker swarm join-token manager
+To add a manager to this swarm, run the following command:
+
+    docker swarm join \
+    --token SWMTKN-1-06y3xg5vjkh0tzla9fodgp6zrzsqqus8974b75umbvxeemwds9-1dlmdl3jxiz27ptggus4d9plg \
+    10.10.10.60:2377
+```
+
+and running the join command on the new node
+```
+[root@swarm09 ~]# docker swarm join \
+    --token SWMTKN-1-06y3xg5vjkh0tzla9fodgp6zrzsqqus8974b75umbvxeemwds9-1dlmdl3jxiz27ptggus4d9plg \
+    10.10.10.60:2377
+```
+
+Adding manager nodes to a swarm, pay attention to the datacenter topology where to place the managers. For optimal high-availability, distribute manager nodes across a minimum of 3 availability zones to support failures of an entire set of machines.
+
+Also in production, consider to run user tasks only on worker nodes to avoid resources starvation on CPU and memory. To avoid interference between manager node operation and user tasks, drain manager nodes to make them unavailable as worker nodes
+```
+[root@swarm00 ~]# docker node update --availability drain swarm00
+
+[root@swarm00 ~]# docker node list
+ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
+3kru4v3w3lezys0tc9cnoczou *  swarm00   Ready   Drain         Leader
+e2kqucdbmkzm5ks6s2pciyg9v    swarm01   Ready   Active        Reachable
+mdmnfom70hh86go8up5zl272y    swarm02   Ready   Active        Reachable
+```
+
+When drain a node, the scheduler reassigns any user tasks running on the node to other available worker nodes in the cluster also preventing the scheduler from assigning user tasks to that node.
+
+To demote the node from manager to a worker
+```
+[root@swarm00 ~]# run docker node demote swarm02
+```
+
+To remove the node from the swarm
+```
+[root@swarm00 ~]# run docker node rm swarm01
+```
+
+To rejoin the node to the swarm with a fresh state
+```
+[root@swarm00 ~]# docker swarm join swarm01
 ```
 

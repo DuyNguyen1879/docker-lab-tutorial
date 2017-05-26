@@ -5,6 +5,7 @@ Swarm Node lets to have a complete all-built-in Docker cluster solution includin
   * [Swarm Networking](#swarm-networking)
   * [Deploying Services](#deploying-services)
   * [Scaling Services](#scaling-services)
+  * [Routing Mesh](#srouting-mesh)
   * [Service Failover](#service-failover)
   * [Service Networks](#service-networks)
   * [Service Discovery](#service-discovery)
@@ -467,17 +468,16 @@ So the network layout should be like this
 
 ![](../img/swarm-layout-01.png?raw=true)
 
+We see the gateway bridge network as ingress point for all requests to the exposed nodejs service ``curl http://swarm01:80``. These requests are handled by the ingress sandbox on each node and then dispatched on the nodejs container via the overlay network. This is accomplished by a complex set of iptables chain.
 
-We see the gateway bridge network as ingress point for all requests to the exposed nodejs service ``curl http://<Node_IP_Address>:80``. These requests are handled by the ingress sandbox on each node and then dispatched on the nodejs container via the overlay network. This is accomplished by a complex set of iptables chain.
-
-Suppose a request comes to the the first node, i.e. ``curl http://10.10.10.60:80``. The iptables on that host intercept the request and translate to the ingress sandbox address on the gateway bridge network, i.e. ``172.18.0.2:80``. Then the request comes to the sandbox gateway that will traslate it to IP ``10.255.0.3``, which is the IP address of its interface on the ingress overlay network. 
+The iptables on that host intercept the request and translate to the ingress sandbox address on the gateway bridge network, i.e. ``172.18.0.2:80``. Then the request comes to the sandbox gateway that will traslate it to IP ``10.255.0.4``, which is the IP address of its interface on the ingress overlay network. 
 
 At this point, the request is dispatched to the destination container on the overlay network. Swarm uses the embedded load balancer implementation in the Linux kernel called **IPVS**. To check the configuration of the IPVS, we need to install before the admin tool ``ipvsadm``.
 
 ```
-[root@swarm00 ~]# yum install ipvsadm -y
+[root@swarm01 ~]# yum install ipvsadm -y
 
-[root@swarm00 ~]# ip netns exec ingress_sbox ipvsadm -ln
+[root@swarm01 ~]# ip netns exec ingress_sbox ipvsadm -ln
 IP Virtual Server version 1.2.1 (size=4096)
 Prot LocalAddress:Port Scheduler Flags
   -> RemoteAddress:Port           Forward Weight ActiveConn InActConn
@@ -526,7 +526,7 @@ This container has IP ``10.255.0.8`` on the ingress overlay network.
 
 Back to the master node, check what happened to the IPVS load balancer configuration
 ```
-[root@swarm00 ~]# ip netns exec ingress_sbox ipvsadm -ln
+[root@swarm01 ~]# ip netns exec ingress_sbox ipvsadm -ln
 IP Virtual Server version 1.2.1 (size=4096)
 Prot LocalAddress:Port Scheduler Flags
   -> RemoteAddress:Port           Forward Weight ActiveConn InActConn
@@ -553,7 +553,38 @@ Here the layout
 
 ![](../img/swarm-layout-02.png?raw=true)
 
-For clarity, only one path is reported in the picture. However, all the nodes partecipating in a swarm, are able to route incoming requests to the specified service. This feature is called "**Routing Mesh**".
+
+## Routing Mesh
+All the nodes partecipating in a swarm, are able to route incoming requests from their Ingress Sandbox to the specified service, no matter which is the node running the service. This feature is called "**Routing Mesh**" and it is used to expose a service to the external world. For example, a request to the exposed nodejs service ``curl http://swarm00:80`` or ``curl http://swarm02:80`` will be handled by the IPVS on the nodes ``swarm00`` and ``swarm02`` respectively.
+
+Here the layout
+
+![](../img/swarm-layout-03.png?raw=true)
+
+You can configure an external load balancer, e.g. HAProxy or Nginx to route requests to a swarm service. For the example above, you could configure the proxy to balance requests to the nodejs service published to port 80. The swarm nodes can reside on a private network that is accessible only to the proxy server, but that is not publicly accessible.
+
+For example, you could have the following HAProxy configuration in ``/etc/haproxy/haproxy.cfg`` configuration file of the proxy server 
+```
+global
+        log /dev/log    local0
+        log /dev/log    local1 notice
+...snip...
+
+# Configure HAProxy to listen on port 80
+frontend http_front
+   bind *:80
+   stats uri /haproxy?stats
+   default_backend http_back
+
+# Configure HAProxy to route requests to swarm nodes on port 80
+backend http_back
+   balance roundrobin
+   server swarm00 10.10.10.60:80 check
+   server swarm01 10.10.10.61:80 check
+   server swarm02 10.10.10.62:80 check
+```
+
+When users access the HAProxy load balancer on port 80, it forwards requests to nodes in the swarm. The swarm routing mesh feature routes the requests to the containers through the internal IPV load balancer. If, for any reason, the swarm scheduler dispatches the container to a different node, the system admin don’t need to reconfigure the load balancer.
 
 Please, note that routing mesh is the default option. If you need your service to be exposed only on the node where it is actually running, you can force this with the ``--publish mode=host,target=<target_port>,published=<published_port>`` option during service creation. For example:
 ```
@@ -581,77 +612,7 @@ tcp6       0      0 :::80                   :::*                    LISTEN      
 [root@swarm02 ~]#
 ```
 
-Login to the worker node and check the container
-```
-[root@swarm01 ~]# ip netns
-74e0dc5e5e3a (id: 55)
-1-1qc6vhwhae (id: 0)
-ingress_sbox (id: 1)
-
-[root@swarm01 ~]# ip netns exec 74e0dc5e5e3a ifconfig
-eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
-        inet 172.17.0.2  netmask 255.255.0.0  broadcast 0.0.0.0
-        inet6 fe80::42:acff:fe11:2  prefixlen 64  scopeid 0x20<link>
-        ether 02:42:ac:11:00:02  txqueuelen 0  (Ethernet)
-
-[root@swarm01 ~]# docker network list
-NETWORK ID          NAME                DRIVER              SCOPE
-61a82e63de4b        bridge              bridge              local
-18ef9a1c2e08        docker_gwbridge     bridge              local
-5f03d7b5240a        host                host                local
-1qc6vhwhaeqn        ingress             overlay             swarm
-3cd5989ee74c        none                null                local
-```
-
-We see an interesting thing: container is attached to the default docker bridge network
-```
-[root@swarm01 ~]# docker network inspect bridge
-```
-
-```json
-[
-    {
-        "Name": "bridge",
-        "Id": "61a82e63de4bacfa6c6bf9cf8569772f464b70ad186509c081eb773e99efcaa4",
-        "Created": "2017-03-30T15:23:25.378638948+02:00",
-        "Scope": "local",
-        "Driver": "bridge",
-        "EnableIPv6": false,
-        "IPAM": {
-            "Driver": "default",
-            "Options": null,
-            "Config": [
-                {
-                    "Subnet": "172.17.0.0/16",
-                    "Gateway": "172.17.0.1"
-                }
-            ]
-        },
-        "Internal": false,
-        "Attachable": false,
-        "Containers": {
-            "a2558836b774f026a96846337291da086e7a185b2e4aa4618e669c7547b91320": {
-                "Name": "nodejs.1.ml09rgqmxshpi3nscwtvhd3le",
-                "EndpointID": "72d8e5185ad3ea19147f0503129d092689c772ebb62baa69efff5a4d3988c82f",
-                "MacAddress": "02:42:ac:11:00:02",
-                "IPv4Address": "172.17.0.2/16",
-                "IPv6Address": ""
-            }
-        },
-        "Options": {
-            "com.docker.network.bridge.default_bridge": "true",
-            "com.docker.network.bridge.enable_icc": "true",
-            "com.docker.network.bridge.enable_ip_masquerade": "true",
-            "com.docker.network.bridge.host_binding_ipv4": "0.0.0.0",
-            "com.docker.network.bridge.name": "docker0",
-            "com.docker.network.driver.mtu": "1500"
-        },
-        "Labels": {}
-    }
-]
-```
-
-Pay attention to this mode, since it creates an implicit limitation that you can only run one container for that service on a given swarm node.
+In general, routing mesh is the prefereable way to expose services since the host mode does not provide high availability and load balancing of the service.
 
 ## Service Failover
 In this section we are going to explore how swarm handles a service failover. Single containers are not replaced if they get failed, deleted or terminated for some reason. To make things more robust, Swarm introduces the replica abstraction. A replica ensures that a service gets a specified number of running container "replicas" at any time. In other words, a replica makes sure that a service has always coontainers up and running, no matter what happens. If there are too many containers, it will kill some; if there are too few, it will start more.

@@ -72,6 +72,14 @@ Specify the container name
 # docker run -d -p 4000:80 --name webserver httpd
 ```
 
+By default, a container has no resource constraints and can use cpu, memory, and io as the host’s kernel permits. Control how much host resources a container can use
+```
+# docker run -d -p 4000:80 --name webserver --memory 400m --cpus 0.5 httpd
+```
+
+The command avove force the webserver container to no more than 400 MB of memory and half of host's CPU.
+
+
 List running containers
 ```
 # docker ps

@@ -16,18 +16,18 @@ This is a lab tutorial to Docker and Linux containers. It covers theoretical bac
      * [Creating an image from a Docker file](./content/images.md#creating-an-image-from-a-docker-file)
      * [Building your own images](./content/images.md#building-your-own-images)
 
-4. [Networking](./content/networks.md)
+4.  [Storage](./content/storage.md)
+     * [Graph Drivers](./content/storage.md#graph-drivers)
+     * [Persistent Volumes](./content/storage.md#persistent-volumes)
+     * [Registry](./content/storage.md#registry)
+
+5. [Networking](./content/networks.md)
      * [Default Networks](./content/networks.md#default-networks)
      * [User defined bridge networks](./content/networks.md#user-defined-bridge-networks)
      * [Using custom Docker networks](./content/networks.md#using-custom-docker-networks)
      * [Inter Containers Communication](./content/networks.md#inter-containers-communication)
      * [Embedded DNS Service](./content/networks.md#embedded-dns-service)
      * [MAC VLAN mode](./content/networks.md#mac-vlan-mode)
-
-5.  [Storage](./content/storage.md)
-     * [Graph Drivers](./content/storage.md#graph-drivers)
-     * [Persistent Volumes](./content/storage.md#persistent-volumes)
-     * [Registry](./content/storage.md#registry)
 
 6. [Swarm Mode](./content/swarm-mode.md)
      * [Setup the Swarm](./content/swarm-mode.md#setup-the-swarm)

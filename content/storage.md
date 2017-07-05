@@ -185,6 +185,7 @@ Persistent volumes can be created before the container and then attached to the 
 
     [root@centos ~]# docker volume create --name pippo
     [root@centos ~]# docker volume inspect pippo
+    
     ```json
     [
         {
@@ -197,6 +198,7 @@ Persistent volumes can be created before the container and then attached to the 
         }
     ]
     ```
+    
     [root@centos ~]# docker run --name=nodejs \
        -p 80:8080 -d \
        -e MESSAGE="Hello" \
@@ -204,6 +206,7 @@ Persistent volumes can be created before the container and then attached to the 
     docker.io/kalise/nodejs-web-app:latest
     
     [root@centos ~]# docker inspect nodejs
+    
     ```json
     ...
     "Mounts": [

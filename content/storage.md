@@ -101,11 +101,11 @@ Containers often require persistent storage for using, capturing, or saving data
 Persistent storage is an important use case, especially for things like databases, images, file and folder sharing among containers. To achieve this goal, there are two different approaches:
 
   1. host based volumes
-  2. shared hosts volumes
+  2. shared volumes
 
-In the first case, persisten volumes reside on the same host where container is running. In the latter, volumes reside on a shared filesystem like NFS, GlusterFS or others. In the first case, data are persistent to the host, meaning if the orchestrator moves the container on another host, the content of the volume is no more accessible to the new container. In case of shared multi host storage, it takes advantage of a distributed filesystem combined with the explicit storage technique. Since the mount point is available on all nodes, it can be leveraged to create a shared mount point among containers. 
+In the first case, persisten volumes reside on the same host where container is running. In the latter, volumes reside on a shared filesystem like NFS, GlusterFS or others. In the first case, data are persistent to the host, meaning if the container is moved to an another host, the content of the volume is no more accessible to the new container. In the second case, since the mount point is accessible from all nodes, the volume can be mounted by any container, no matter the host is running the container. The latter case provides data persistence across a cluster of hosts. 
 
-Persistent volumes are mapped from volumes defined into Dockerfile to filesystem on the hos running the container. For example, the following Dockerfile defines a volume ``/var/log`` where the web app stores its access logs
+Persistent volumes are mapped from volumes defined into Dockerfile to filesystem on the host running the container. For example, the following Dockerfile defines a volume ``/var/log`` where the web app stores its access logs
 ```
 # Create the image from the latest nodejs
 # The image is stored on Docker Hub at docker.io/kalise/nodejs-web-app:latest
@@ -141,11 +141,10 @@ Start a container from the nodejs image creating the volume
 [root@centos ~]# docker run --name=nodejs \
    -p 80:8080 -d \
    -e MESSAGE="Hello" \
-   -v /var/log \
 docker.io/kalise/nodejs-web-app:latest
 ```
 
-To find where the volume is located on the host machine, inspect the container
+All persistent volumes are created under ``/var/lib/docker/volumes/`` directory. Inspect the container to check the volumes used by
 ```
 [root@centos ~]# docker inspect nodejs
 ```
@@ -165,7 +164,7 @@ To find where the volume is located on the host machine, inspect the container
 ...
 ```
 
-Please, note that data volumes persist even if the container itself is deleted.
+A volume persist even if the container itself is deleted.
 ```
 [root@centos ~]# docker rm -f nodejs
 
@@ -174,7 +173,57 @@ total 4
 drwxr-xr-x 4 root root 4096 Apr 11 16:32 _data
 ```
 
-Also they can be shared among different containers. Persistent volumes can be mounted on any point of the host file system. This helps sharing data between containers and host itself. For example, we can mount the volume above under the ``/logs`` directory of the host running the container
+To manually delete a volume, find the volume and remove it
+
+    [root@centos ~]# docker volume list
+    DRIVER              VOLUME NAME
+    local               84894a09fe25f503cd0f2d3a30eaa00a08d72190a92e2568d395cea5a277c456
+    
+    [root@centos ~]# docker volume remove 84894a09fe25f503cd0f2d3a30eaa00a08d72190a92e2568d395cea5a277c456
+
+Persistent volumes can be created before the container and then attached to the container
+
+    [root@centos ~]# docker volume create --name pippo
+    [root@centos ~]# docker volume inspect pippo
+    ```json
+    [
+        {
+            "Driver": "local",
+            "Labels": {},
+            "Mountpoint": "/var/lib/docker/volumes/pippo/_data",
+            "Name": "pippo",
+            "Options": {},
+            "Scope": "local"
+        }
+    ]
+    ```
+    [root@centos ~]# docker run --name=nodejs \
+       -p 80:8080 -d \
+       -e MESSAGE="Hello" \
+       -v pippo:/var/log \
+    docker.io/kalise/nodejs-web-app:latest
+    
+    [root@centos ~]# docker inspect nodejs
+    ```json
+    ...
+    "Mounts": [
+            {
+                "Type": "volume",
+                "Name": "pippo",
+                "Source": "/var/lib/docker/volumes/pippo/_data",
+                "Destination": "/var/log",
+                "Driver": "local",
+                "Mode": "z",
+                "RW": true,
+                "Propagation": ""
+            }
+        ]
+    ...
+    ```
+    
+**Note:** *Persistent volumes are initialized when a container is created. If the container’s parent image contains data at the specified mount point, that existing data is copied into the new volume upon volume initialization.* 
+
+Persistent volumes can be mounted on any directory of the host file system. This helps sharing data between containers and host itself. For example, we can mount the volume on the ``/logs`` directory of the host running the container
 
 ```
 [root@centos ~]# docker run --name=nodejs \
@@ -184,15 +233,11 @@ Also they can be shared among different containers. Persistent volumes can be mo
 docker.io/kalise/nodejs-web-app:latest
 ```
 
-Volume data now are placed on the ``/logs`` directory
-```
-[root@centos ~]#  tailf /log/requests.log
-1491922136506 ::ffff:10.10.10.1
-1491922154632 ::ffff:10.10.10.1
-...
-```
+Volume data now are placed on the ``/logs`` host directory.
 
 The same volume could be mounted by another container, for example a container performing some analytics on the logs produced by the nodejs application. However, multiple containers writing to a single shared volume can cause data corruption. Make sure the application is designed to write to shared data stores.
+
+**Note:** *When mounting a persistent volume on a given host directory, if the container’s parent image contains data at the specified mount point, that existing data is overwritten upon volume initialization.* 
 
 ### Wordpress example 
 To demonstrate the use of persistent volumes we are going to setup a worpress application made of two containers:

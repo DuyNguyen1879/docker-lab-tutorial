@@ -175,18 +175,22 @@ drwxr-xr-x 4 root root 4096 Apr 11 16:32 _data
 
 To manually delete a volume, find the volume and remove it
 
-    [root@centos ~]# docker volume list
-    DRIVER              VOLUME NAME
-    local               84894a09fe25f503cd0f2d3a30eaa00a08d72190a92e2568d395cea5a277c456
+```
+[root@centos ~]# docker volume list
+DRIVER              VOLUME NAME
+local               84894a09fe25f503cd0f2d3a30eaa00a08d72190a92e2568d395cea5a277c456
     
-    [root@centos ~]# docker volume remove 84894a09fe25f503cd0f2d3a30eaa00a08d72190a92e2568d395cea5a277c456
+[root@centos ~]# docker volume remove 84894a09fe25f503cd0f2d3a30eaa00a08d72190a92e2568d395cea5a277c456
+```
 
 Persistent volumes can be created before the container and then attached to the container
 
-    [root@centos ~]# docker volume create --name pippo
-    [root@centos ~]# docker volume inspect pippo
-    
-    ```json
+```
+[root@centos ~]# docker volume create --name pippo
+[root@centos ~]# docker volume inspect pippo
+```    
+
+```json
     [
         {
             "Driver": "local",
@@ -197,17 +201,19 @@ Persistent volumes can be created before the container and then attached to the 
             "Scope": "local"
         }
     ]
-    ```
+```
     
-    [root@centos ~]# docker run --name=nodejs \
+```
+[root@centos ~]# docker run --name=nodejs \
        -p 80:8080 -d \
        -e MESSAGE="Hello" \
        -v pippo:/var/log \
     docker.io/kalise/nodejs-web-app:latest
-    
-    [root@centos ~]# docker inspect nodejs
-    
-    ```json
+
+[root@centos ~]# docker inspect nodejs
+```    
+
+```json
     ...
     "Mounts": [
             {
@@ -222,7 +228,7 @@ Persistent volumes can be created before the container and then attached to the 
             }
         ]
     ...
-    ```
+```
     
 **Note:** *Persistent volumes are initialized when a container is created. If the container’s parent image contains data at the specified mount point, that existing data is copied into the new volume upon volume initialization.* 
 

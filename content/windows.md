@@ -78,8 +78,8 @@ And start a container
 Check the container is running
 
       PS C:> docker ps
-      CONTAINER ID  IMAGE              COMMAND                  CREATED        STATUS   PORTS                         NAMES
-      e0b5d6698160  kalise/iis:latest  "C:\\ServiceMonitor..."  2 minutes ago  Up       80/tcp, 0.0.0.0:80->8080/tcp  web
+      CONTAINER ID  IMAGE              COMMAND                  STATUS   PORTS                         NAMES
+      e0b5d6698160  kalise/iis:latest  "C:\\ServiceMonitor..."  Up       80/tcp, 0.0.0.0:80->8080/tcp  web
 
 
 ## Run Microsoft SQL Server as container
@@ -88,15 +88,15 @@ The Microsoft SQL Server is available as docker container for Windows, details a
 From PowerShell
 
       PS C:> docker pull microsoft/mssql-server-windows-express
-      PS C:> docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=*******" -d -p 1433:1433 --name=mssql microsoft/mssql-server-windows-express:latest
+      PS C:> docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=*******" -e -d -p 1433:1433 --name=mssql microsoft/mssql-server-windows-express:latest
       
-Note: make sure to use a Strong!Passw0rd
+We are using two env varialbles defined in the image to pass EULA acceptance answer and system  dministrator password. Note: make sure to use a Strong!Passw0rd according to MS SQL Server requiremnets.
 
 Check the running containers
 
       PS C:> docker ps
-      CONTAINER ID  IMAGE                    COMMAND                  STATUS    PORTS                    NAMES
-      4920e0483875  microsoft/mssql-serv..   "cmd /S /C 'powers..."   Up        0.0.0.0:1433->1433/tcp   mssql
+      CONTAINER ID  IMAGE                COMMAND                  STATUS    PORTS                    NAMES
+      4920e0483875  microsoft/mssql-..   "cmd /S /C 'powers..."   Up        0.0.0.0:1433->1433/tcp   mssql
 
 
 The server is listening on its default port 1433 on both container and host side.
@@ -106,3 +106,10 @@ To connect the server from a remote client, use the ``sqlcmd`` on Linux or Windo
       sqlcmd -S <IPADDRESS>:<PORT> -U SA -P "*******"
 
 Details on accessing a MS SQL server are [here](https://docs.microsoft.com/en-us/sql/linux/sql-server-linux-connect-and-query-sqlcmd).
+
+The MS SQL Server configuration changes and database files are persisted in the container even when restarting the container with ``docker stop`` and ``docker start``. However, removing the container with ``docker rm`` or in case of crash, everything in the container is deleted, including the SQL Server and the databases. To persist changes and user defined databases, use the docker volumes to store data on some host volume.
+
+
+
+
+      

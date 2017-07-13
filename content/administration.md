@@ -39,6 +39,9 @@ By default docker engine has no authentication or authorization, relying instead
 
 On any Linux machine with OpenSSL installed, create a folder where store certificates and keys
 
+    openssl version
+    OpenSSL 1.0.1e-fips 11 Feb 2013
+    
     mkdir -p ./docker-pki
     cd ./docker-pki
     
@@ -46,16 +49,30 @@ The docker two-way authentication requires the server to have two certificates: 
 
 ![](../img/tls.png?raw=true)
 
-The CA Server is not required in this tutorial since we are using a self generated Certificated Authority certificate.
-
-
 
 ### Create Certification Authority certificate and key
-Create a **CA** private key file ``ca-key.pem`` with encryption
+The CA Server is not required in this tutorial since we are using a self generated Certificated Authority certificate. Create a **CA** private key file ``ca-key.pem`` with an encrypted passphrase
 
     openssl genrsa -aes256 -out ca-key.pem 4096
 
-This is the private key used to 
+This is the private key used to sign client and server certificates against the Certification Authority server. To inspect the private key, use the following command:
+
+    openssl rsa -in ca-key.pem -text 
+
+Now create the CA certificate ``ca.pem`` file using the private key above
+
+    openssl req -new -x509 -days 3650 -key ca-key.pem -sha256 -out ca.pem
+
+As convenience, we set the validity of this certificate as for 10 years.
+
+    openssl x509 -in ca.pem -noout -text
+
+### Create certificate and key for the server
+Create a private key for the server
+
+
+
+Once we have a private key, we can proceed to create a Certificate Signing Request (**CSR**). This is a formal request asking a CA to sign a certificate, and it contains the public key of the entity requesting the certificate and some information about the entity. This data will all be part of the certificate. A CSR is always signed with the private key corresponding to the public key it carries.
 
 
 

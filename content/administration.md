@@ -224,7 +224,7 @@ The docker engine provide a complete set of REST APIs. The APIs can be accessed 
 
 For example
 
-curl  http://docker-engine:2375/version | jq .
+    curl  http://docker-engine:2375/version | jq .
 
 returns
 

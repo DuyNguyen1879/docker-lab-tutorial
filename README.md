@@ -48,6 +48,11 @@ This is a lab tutorial to Docker and Linux containers. It covers theoretical bac
       * [Networks](./content/applications.md#networks)
       * [Volumes](./content/applications.md#volumes)
 
+8. [Administration of the Docker Engine](./content/administration.md)
+      * [Configure the engine](./content/administration.md#configure-the-engine)
+      * [Securing the engine with TLS](./content/administration.md#securing-the-engine-with-tls)
+      * [Accessing the engine with APIs](./content/administration.md#accessing-the-engine-with-apis)
+
 ## Disclaimer
 This tutorial is for personal use only. This is just a lab guide, not a documentation for Docker, please go to their online
 documentation sites for more details about what Docker is and how does it work.

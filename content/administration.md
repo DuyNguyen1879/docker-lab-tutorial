@@ -62,7 +62,7 @@ Now create the CA certificate ``ca.pem`` file using the key above
 
     openssl req -new -x509 -days 3650 -key ca-key.pem -sha256 -out ca.pem
 
-This is an interactive process, asking for information about the Certificate Authority. Only sure that Common Name (**CN**) option matches the hostname of the docker engine. 
+This is an interactive process, asking for information about the Certificate Authority. Since we're creating our own Certification Authority, no too much constraints here.
 
 Inspect the certificate
 

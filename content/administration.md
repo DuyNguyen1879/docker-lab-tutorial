@@ -49,49 +49,174 @@ The docker two-way authentication requires the server to have two certificates: 
 
 ![](../img/tls.png?raw=true)
 
+Please, remember this is only an example: dealing with a real Certificate Authority will be slightly different.
 
 ### Create Certification Authority certificate and key
-The CA Server is not required in this tutorial since we are using a self generated Certificated Authority certificate. Create a **CA** private key file ``ca-key.pem`` with an encrypted passphrase
+The CA Server is not required in this tutorial since we are using a self generated Certificated Authority. Create a **CA** key file ``ca-key.pem`` with an encrypted passphrase
 
     openssl genrsa -aes256 -out ca-key.pem 4096
 
-This is the private key used to sign client and server certificates against the Certification Authority server. To inspect the private key, use the following command:
+This is the key used to sign client and server certificates against the Certification Authority. It is NOT the private key used in the client/server communication. We'll create these keys later. To inspect the just created key, use the ``openssl rsa -in ca-key.pem -text`` command. If you are interested in to extract the public part from this key, use the command ``openssl rsa -in ca-key.pem -pubout``.
 
-    openssl rsa -in ca-key.pem -text 
-
-Now create the CA certificate ``ca.pem`` file using the private key above
+Now create the CA certificate ``ca.pem`` file using the key above
 
     openssl req -new -x509 -days 3650 -key ca-key.pem -sha256 -out ca.pem
 
-As convenience, we set the validity of this certificate as for 10 years.
+This is an interactive process, asking for information about the Certificate Authority. Only sure that Common Name (**CN**) option matches the hostname of the docker engine. 
+
+Inspect the certificate
 
     openssl x509 -in ca.pem -noout -text
+    
+    Certificate:
+        Data:
+            Version: 3 (0x2)
+            Serial Number: 15209141164087594974 (0xd311b94ea8364fde)
+        Signature Algorithm: sha256WithRSAEncryption
+            Issuer: C=IT, ST=Italy, L=Milan, O=NoverIT, CN=kalise
+            Validity
+                Not Before: Jul 13 18:06:54 2017 GMT
+                Not After : Jul 11 18:06:54 2027 GMT
+            Subject: C=IT, ST=Italy, L=Milan, O=NoverIT, CN=kalise
+            Subject Public Key Info:
+                Public Key Algorithm: rsaEncryption
+                    Public-Key: (4096 bit)
+
+As convenience, we set the validity of this certificate as for 10 years.
 
 ### Create certificate and key for the server
-Create a private key for the server
+Create the private key ``server-key.pem`` file for the docker engine server
 
+    openssl genrsa -out server-key.pem 4096
 
+Once we have a private key, we can proceed to create a Certificate Signing Request (**CSR**). This is a formal request asking the CA to sign a certificate. The request contains the public key of the entity requesting the certificate and some information about the entity. This data will be part of the certificate.
 
-Once we have a private key, we can proceed to create a Certificate Signing Request (**CSR**). This is a formal request asking a CA to sign a certificate, and it contains the public key of the entity requesting the certificate and some information about the entity. This data will all be part of the certificate. A CSR is always signed with the private key corresponding to the public key it carries.
+Create the request
 
+    HOST=docker-engine
+    openssl req -subj "/CN=$HOST" -sha256 -new -key server-key.pem -out server.csr
 
+Make sure that Common Name (**CN**) matches the hostname of the docker engine.
 
+Sign the certificate
 
+    openssl x509 -req -days 3650 -sha256 -in server.csr \
+                 -CA ca.pem \
+                 -CAkey ca-key.pem \
+                 -CAcreateserial -out server-cert.pem
 
+This will produce the ``server-cert.pem`` certificate file containing the public key to authenticate against the server running the docker engine. Together with the ``server-key.pem`` file, this makes up a server's keys pair.
 
+Move the server's keys pair as well as the ``ca.pem`` file to a given location on server where the docker engine is running
 
+    mkdir -p /etc/docker/ssl/
+    mv ca.pem /etc/docker/ssl/ca.pem
+    mv server-cert.pem /etc/docker/ssl/server-cert.pem
+    mv server-key.pem /etc/docker/ssl/server-key.pem
 
+We'll instruct the docker engine to use these files. To improve secutity, make sure the private key file will be safe, e.g. changing the file permissions.
 
+#### Creating Certificates Valid for Multiple Hostnames
+By default, certificates have only one Common Name (**CN**) and are valid for only one hostname. Because of this, having a cluster of docker engines, we are forced to use a separate certificate for each node. In this situation, using a single multidomain certificate makes much more sense. For this example, create an estention file ``openssl.cnf`` with the following content
 
+    subjectAltName = @alt_names
 
+    [alt_names]
+    DNS.0 = swarm00
+    IP.0 = 10.10.10.60
+    DNS.1 = swarm01
+    IP.1 = 10.10.10.61
+    DNS.2 = swarm02
+    IP.2 = 10.10.10.62
+    DNS = localhost
+    IP = 127.0.0.1
 
+Sign the certificate
 
+    openssl x509 -req -days 3650 -sha256 -in server.csr \
+                 -CA ca.pem \
+                 -CAkey ca-key.pem \
+                 -CAcreateserial -out server-cert.pem \
+                 -extfile openssl.cnf
 
+When a certificate contains alternative names, the Common Name is ignored. Newer certificates produced by CA may not even include any Common Names. For this reason, include all desired hostnames on the alternative names configuration file.
 
+### Create certificate and key for the client
+Since TLS authentication in docker is a two way authentication between client and server, we need to create a client's keys pair. Create the private key ``key.pem`` file for the docker client.
 
+    openssl genrsa -out key.pem 4096
 
+Once we have a private key, we can proceed to create a Certificate Signing Request for the client. For the client certificate, we can use an arbitrary name for the Common Name option.
 
+    openssl req -subj '/CN=client' -new -key key.pem -out client.csr
 
+To make the certificate suitable for client authentication, create an extensions configuration ``client.cnf`` file and sign the certificate
+
+    echo extendedKeyUsage = clientAuth > client.cnf
+    openssl x509 -req -days 365 -sha256 -in client.csr \
+                 -CA ca.pem \
+                 -CAkey ca-key.pem \
+                 -CAcreateserial -out cert.pem \
+                 -extfile client.cnf
+
+This will produce the ``cert.pem`` certificate file containing the public key for the client. Together with the ``key.pem`` file, this makes up a client's keys pair.
+
+Move the client's keys pair as well as the ``ca.pem`` file to a given location on the client used to connect the docker engine
+
+    mkdir -p $HOME/.docker
+    mv ca.pem $HOME/.docker/ca.pem
+    mv cert.pem $HOME/.docker/cert.pem
+    mv key.pem $HOME/.docker/key.pem
+
+We'll instruct the docker client to use these files. To improve secutity, make sure the private key file will be safe, e.g. changing the file permissions.
+
+After generating the server and client certificates, we can safely remove the two certificate signing requests as well as the extension configuration files
+
+    rm -rf *.csr
+    rm -rf *.cnf
+
+### Enable TLS verification
+On the server, stop the docker engine and edit the docker daemon ``/etc/docker/daemon.json`` configuration file as following
+```json
+{
+ "debug": true,
+ "storage-driver": "devicemapper",
+ "tls": true,
+ "tlscacert": "/etc/docker/ssl/ca.pem",
+ "tlscert": "/etc/docker/ssl/server-cert.pem",
+ "tlskey": "/etc/docker/ssl/server-key.pem",
+ "hosts": ["tcp://0.0.0.0:2376","unix:///var/run/docker.sock"]
+}
+```
+
+Restart the engine and check the engine is listening on the secure port 
+
+    netstat -natp | grep -i 2376
+    
+    Proto Recv-Q Send-Q Local Address Foreign Address   State   PID/Program name
+    tcp6       0      0 :::2376       :::*              LISTEN  15803/dockerd
+
+On the client, force the TLS by setting the options
+
+    docker --tlsverify \
+           --tlscacert=$HOME/.docker/ca.pem \
+           --tlscert=$HOME/.docker/cert.pem \
+           --tlskey=$HOME/.docker/key.pem \
+           --host=docker-engine:2376 version
+
+To secure client by default, wwithout adding tls and host info for every call to the engine, export the following environment variables in a bash profile ``docker-tls.rc`` file
+
+```bash
+export PS1='[\W(tls)]\$ '
+export DOCKER_HOST=tcp://docker-engine:2376
+export DOCKER_TLS_VERIFY=1
+export DOCKER_CERT_PATH=$HOME/.docker  # {ca,cert,key}.pem directory
+```
+
+Then source the file and connect the server
+
+    source docker-tls.rc
+    [~(tls)]# docker version
 
 
 

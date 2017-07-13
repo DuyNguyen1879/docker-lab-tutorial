@@ -245,7 +245,6 @@ returns
 With the Python SDK, create ``docker-version.py`` script 
 ```python
 #!/usr/bin/python
-# Copyright 2017 - Adriano Pezzuto
 # https://github.com/kalise
 # Usage: <command> -h host -p port
 # -h, --host host to connect

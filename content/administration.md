@@ -47,7 +47,7 @@ On any Linux machine with OpenSSL installed, create a folder where store certifi
     
 The docker two-way authentication requires the server to have two certificates: the Certification Authority certificate and the server certificate and a private key. It also requires the client to have two certificates: the Certification Authority certificate and the client certificate and a private key:
 
-![](../img/tls.png?raw=true)
+![](../img/detls.png?raw=true)
 
 Please, remember this is only an example: dealing with a real Certificate Authority will be slightly different.
 

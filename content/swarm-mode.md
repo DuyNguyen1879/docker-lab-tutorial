@@ -25,8 +25,6 @@ A Swarm cluster of nodes is made of manager nodes and worker nodes:
 
 Initially, our cluster is made of three nodes: one manager and only two workers. Please, note that in Swarm Mode, a node can be manager and worker at same time, i.e. a manager node can also run user's services. Multiple managers, with a minimum of three are recommended in production for high availability of the control plane. Swarm manager nodes use the [Raft](https://raft.github.io/) consensus algorithm to manage the swarm state. Raft requires a majority of managers, also called the quorum, to agree on proposed updates to the swarm and storing the same consistent state across all the manager nodes.
 
-A Swarm cluster with only a manager node is a single point of failure. An odd number of managers in the swarm cluster is required to support manager node failures. Having an odd number of managers ensures that during a network partition, the quorum remains available to process requests when an outage occurs and the cluster is partitioned into two separate sets. Quorum is not guaranteed when more than two network partitions exist. Raft tolerates up to (N-1)/2 failures and requires a majority or quorum of (N/2)+1 members to agree on values proposed to the cluster.
-
 ## Setup the Swarm
 On all the three nodes, install the Docker engine. The following ports must be opened on the cluster back network:
 
@@ -783,11 +781,11 @@ faapm76m2wgd   \_ nodejs.1  kalise/nodejs-web-app:latest  swarm01  Shutdown     
 We see the swarm detected the failure of the container running on node ``swarm01`` and then started a new container on the node ``swarm02`` to honor the number of replicas we set.
 
 ## Service Networks
-The overlay network model permits swarm to create a complex layout of networks. In this section, we're going to deploy services on dedicated custom network. Service containers will be attached to the internal network. However, the ingress network and the ingress sandbox still remain the entry point for accessing the service from the external world. To accomplish this, the swarm will attach the service containers also on the ingress network as for the previous example. 
+The overlay network model permits swarm to create a complex layout of networks. In this section, we're going to deploy services on dedicated custom internal network. This is useful when we have to build multilayer applications made of different services. These services will reach each other via dedicated custom internal networks.
 
 Create a new overlay network called ``internal``
 ```
-[root@swarm00 ~]# docker network create --driver=overlay --subnet=172.30.0.0/24 internal
+[root@swarm00 ~]# docker network create --driver=overlay --subnet=172.30.0.0/24 --attachable internal
 
 [root@swarm00 ~]# docker network list
 NETWORK ID          NAME                DRIVER              SCOPE
@@ -798,6 +796,8 @@ f0c9ed46f0b6        host                host                local
 kq7sc5qu1wle        internal            overlay             swarm
 eaef890efed3        none                null                local
 ```
+
+The ``--attachable`` option enables manual container attachment on that network. We use it only for demo purpouse, normally we do not need to use it.
 
 Inspecting the internal network just created
 
@@ -821,7 +821,7 @@ Inspecting the internal network just created
             ]
         },
         "Internal": false,
-        "Attachable": false,
+        "Attachable": true,
         "Containers": null,
         "Options": {
             "com.docker.network.driver.overlay.vxlanid_list": "4097"
@@ -837,7 +837,6 @@ Then start a nodejs web service on this network
        --replicas 1 \
        --name nodejs \
        --network internal \
-       --publish 80:8080 \
        --constraint 'node.role==worker' \
        kalise/nodejs-web-app:latest
 ```
@@ -868,34 +867,6 @@ Login to the worker node where service is running. By inspecting the internal ne
             "com.docker.network.driver.overlay.vxlanid_list": "4097"
         },
         "Labels": {},
-...
-
-```
-
-By inspecting the ingress network, we see also the service container is attached on that network as well as the ingress sandbox
-```json
-...
-        "Internal": false,
-        "Attachable": false,
-        "Containers": {
-            "9b2e3c6c9bcb052a61263eaf696c7352ae33a95e441c604e9929e74d85d0ea1e": {
-                "Name": "nodejs.1.o6fo1nik5sh23ju7f3d6n65ki",
-                "EndpointID": "ddf9d3c61e0ea8d112006ea20caf70050a71cd20609e1b216f29baf7cdd6cf98",
-                "MacAddress": "02:42:0a:ff:00:08",
-                "IPv4Address": "10.255.0.8/16",
-                "IPv6Address": ""
-            },
-            "ingress-sbox": {
-                "Name": "ingress-endpoint",
-                "EndpointID": "5eaa13364c6edbd1541f4401aa1ef275d2df7f659bda6e39647745a3f17e9c5d",
-                "MacAddress": "02:42:0a:ff:00:06",
-                "IPv4Address": "10.255.0.6/16",
-                "IPv6Address": ""
-            }
-        },
-        "Options": {
-            "com.docker.network.driver.overlay.vxlanid_list": "4096"
-        },
 ...
 ```
 
@@ -929,13 +900,81 @@ Also the service container is attached to the gateway bridge network since it ha
 ...
 ```
 
+Our nodejs service is only reachable by only other services running on the internal network. To reach it, create another service, eg. busybox, on the same internal network
+```
+[root@swarm00 ~]# docker service create \
+  --name busybox \
+  --network internal \
+  --constraint 'node.role==worker'  \
+busybox:latest sleep 3000
+```
+
+Check where busybox service has its running container
+```
+[root@swarm00 ~]# docker service ps busybox
+ID            NAME       IMAGE           NODE     DESIRED STATE  CURRENT STATE
+1swg9p3myu38  busybox.1  busybox:latest  swarm02  Running        Running 10 seconds ago
+```
+
+Login to the busybox container and access the nodejs service
+```
+[root@swarm02 ~]# docker exec -it busybox.1 sh
+/ #
+
+/ # wget 172.30.0.3:8080 -O -
+Connecting to 172.30.0.3:8080 (172.30.0.3:8080)
+<html><head></head><body>Hello World! from 172.30.0.3</body></html>
+```
+
+However, the service is not reachable from the external world because we did not exposed it. To make it accessible from outside, login to the manager node and expose the service to an host port
+```
+[root@swarm00 ~]# docker service update nodejs --publish-add 80
+```
+
+Login to the worker node where service is running. By inspecting the ingress network, we see now the service container is attached on that network too. 
+```json
+...
+        "Internal": false,
+        "Attachable": false,
+        "Containers": {
+            "9b2e3c6c9bcb052a61263eaf696c7352ae33a95e441c604e9929e74d85d0ea1e": {
+                "Name": "nodejs.1.o6fo1nik5sh23ju7f3d6n65ki",
+                "EndpointID": "ddf9d3c61e0ea8d112006ea20caf70050a71cd20609e1b216f29baf7cdd6cf98",
+                "MacAddress": "02:42:0a:ff:00:08",
+                "IPv4Address": "10.255.0.8/16",
+                "IPv6Address": ""
+            },
+            "ingress-sbox": {
+                "Name": "ingress-endpoint",
+                "EndpointID": "5eaa13364c6edbd1541f4401aa1ef275d2df7f659bda6e39647745a3f17e9c5d",
+                "MacAddress": "02:42:0a:ff:00:06",
+                "IPv4Address": "10.255.0.6/16",
+                "IPv6Address": ""
+            }
+        },
+        "Options": {
+            "com.docker.network.driver.overlay.vxlanid_list": "4096"
+        },
+...
+```
+The reason for that is because we asked the swarm to expose the service on a public port 80. When a user's request reach the ingress sandbox, it will redirect the request to the service container via the ingress network as in the previous example.
+```
+[root@swarm00 ~]# wget swarm01:80 -O -
+...
+<html><head></head><body>Hello World! from 10.255.0.8</body></html>
+```
+
+If we want to hide the service container, simply detach the service from the host port
+```
+[root@swarm00 ~]# docker service update nodejs --publish-add 80
+```
 
 ## Service Discovery
 As for single host docker networking, the docker swarm uses embedded DNS to provide service discovery for containers running in a swarm. Docker Engine has an embedded DNS server ``nameserver 127.0.0.11`` that provides name resolution to all of the containers. Each container has a DNS resolver that forwards DNS queries to engine, which acts as a DNS server. Docker Engine then checks if the DNS query belongs to a container or service on each network that the requesting container belongs to. If it does, then Docker Engine looks up the IP address that matches a container or service's name in its key-value store and returns the IP address of the container or the  Virtual IP (VIP) associated to the service. Then it sends back the answer to the requester. In case of the service, the VIP is used for load balancing requests to container replicas providing the service.
 
 Service discovery is network-scoped, meaning only containers that are on the same network - including on different hosts - can use the embedded DNS functionality. Containers not on the same network cannot resolve each other's addresses. If the destination container or service and the source container are not on the same network, Docker Engine forwards the DNS query to the external DNS server.
 
-To test service discovery and load balancing, let's to create an internal overly network (service discovery does not work on the ingress overlay network)
+To test service discovery and load balancing, let's to create an internal overly network since service discovery does not work on the ingress overlay network
 
 ```
 [root@swarm00 ~]# docker network create --driver=overlay --subnet=172.32.0.0/24 internal
@@ -963,11 +1002,6 @@ busybox:latest sleep 3000
 
 Check where busybox service has its running container
 ```
-[root@swarm00 ~]# docker service list
-ID            NAME       MODE        REPLICAS  IMAGE
-5v125sxw4n0i  nodejs     replicated  2/2       docker.io/kalise/nodejs-web-app:latest
-or2ynyi80w3y  busybox    replicated  1/1       busybox:latest
-
 [root@swarm00 ~]# docker service ps busybox
 ID            NAME       IMAGE           NODE     DESIRED STATE  CURRENT STATE
 1swg9p3myu38  busybox.1  busybox:latest  swarm02  Running        Running 10 seconds ago
@@ -1038,5 +1072,37 @@ To get the VIP of a service, inspect it
 ```
 
 ## High Availability
+A Swarm cluster with only a manager node is a single point of failure of the cluster control plane. When the control plane is no more available, user's services are still working on worker nodes but the sysadmin is no more able to control the cluster. Also, if something wrong happens on worker nodes, the cluster itself is not able to control the user's services. For this reasons, it is strongly recommended to protect the control plane with multiple managers.
 
+An odd number of managers in the swarm cluster is required to support manager node failures. Having an odd number of managers ensures that during an outage, the cluster quorum remains available to process requests when an outage occurs and the cluster is partitioned into two separate sets. A Swarm cluster (based on Raft) tolerates up to (N-1)/2 failures and requires a majority or quorum of (N/2)+1 members to agree on values proposed to the cluster.
 
+According to the Raft alghoritm, the swarm cluster start a leader election process when the cluster is formed. With a single manager, we just have the leader 
+```
+[root@swarm00 ~]# docker node list
+ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
+b07ejkr444dm5bsbmey4hrd2r *  swarm00   Ready   Active        Leader
+q5wjauy7i4fr7ictcsu2wkl68    swarm01   Ready   Active        
+r8zwpsx1rczpmoxk11i6fuk21    swarm02   Ready   Active        
+```
+
+By promoting the other nodes to master role, we still have the same leader
+```
+[root@swarm00 ~]# docker node promote swarm01 swarm02
+
+[root@swarm00 ~]# docker node list
+ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
+b07ejkr444dm5bsbmey4hrd2r *  swarm00   Ready   Active        Leader
+q5wjauy7i4fr7ictcsu2wkl68    swarm01   Ready   Active        Reachable
+r8zwpsx1rczpmoxk11i6fuk21    swarm02   Ready   Active        Reachable
+```
+
+We have a leader election restart if the current leader goes down
+```
+[root@swarm00 ~]# systemctl restart docker
+
+[root@swarm00 ~]# docker node list
+ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
+b07ejkr444dm5bsbmey4hrd2r *  swarm00   Ready   Active        Reachable
+q5wjauy7i4fr7ictcsu2wkl68    swarm01   Ready   Active        Reachable
+r8zwpsx1rczpmoxk11i6fuk21    swarm02   Ready   Active        Leader
+```

@@ -34,13 +34,13 @@ On all the three nodes, install the Docker engine. The following ports must be o
   * TCP and UDP port 7946 for communication among nodes
   * UDP port 4789 for overlay network traffic
 
-Also TCP port 2375 and 2376 (for TLS) should be opened on the front network for Docker API service in case of remote management.
+Also TCP port 2375 and 2376 (for TLS) should be opened on the front end network for Docker API service in case of remote management.
 
 Make sure the Docker engine daemon is started on all the host machines
 ```
-[root@swarm00 ~]# systemctl start docker
-[root@swarm00 ~]# systemctl enable docker
-[root@swarm00 ~]# systemctl status docker
+systemctl start docker
+systemctl enable docker
+systemctl status docker
 ```
 
 Login tho the manager node and create the swarm
@@ -48,7 +48,7 @@ Login tho the manager node and create the swarm
 [root@swarm00 ~]# docker swarm init --advertise-addr ens33
 ```
 
-The ``--advertise-addr ens33`` option tells to advertise on the cluster back network attached to physical interface ``ens33``. The other nodes in the swarm must be able to access the manager via this interface. Our setup uses a physical front network ``ens32`` for accessing the user's services and a separate physical back network ``ens33`` for clustering traffic.
+The ``--advertise-addr ens33`` option tells to advertise on the cluster back network attached to physical interface ``ens33``. The other nodes in the swarm must be able to access the manager via this interface. Our setup uses a physical front network ``ens32`` for accessing the user's services and a separate physical back network ``ens33`` for clustering traffic among nodes.
 
 Check the swarm node status
 ```
@@ -86,7 +86,7 @@ ryc6zlbxrhvblc7lk8pl3jsva    swarm02   Ready   Active
 tkxuxun03da7y2bozka50mpxi *  swarm00   Ready   Active        Leader
 ```
 
-A worker node can be promoted to manager role as following
+Worker nodes can be promoted to manager role as following
 ```
 [root@swarm00 ~]# docker node promote swarm01 swarm02
 

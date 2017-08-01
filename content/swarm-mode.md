@@ -1224,18 +1224,34 @@ and running the join command on the new node
 
 Adding manager nodes to a swarm, pay attention to the datacenter topology where to place the managers. For optimal high-availability, distribute manager nodes across a minimum of 3 availability zones to support failures of an entire set of machines.
 
-Also in production, consider to run user tasks only on worker nodes to avoid resources starvation on CPU and memory. To avoid interference between manager node operation and user tasks, drain manager nodes to make them unavailable as worker nodes
+Also in production, consider to run user tasks only on worker nodes to avoid resources starvation on CPU and memory. To avoid interference between manager node operation and user tasks, you can *drain* a manager node to make it unavailable for user task
 ```
 [root@swarm00 ~]# docker node update --availability drain swarm00
-
-[root@swarm00 ~]# docker node list
 ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
 3kru4v3w3lezys0tc9cnoczou *  swarm00   Ready   Drain         Leader
 e2kqucdbmkzm5ks6s2pciyg9v    swarm01   Ready   Active        Reachable
 mdmnfom70hh86go8up5zl272y    swarm02   Ready   Active        Reachable
 ```
 
-When drain a node, the scheduler reassigns any user tasks running on the node to other available worker nodes in the cluster also preventing the scheduler from assigning user tasks to that node.
+When draining a node, the scheduler reassigns any user tasks running on the node to other available worker nodes in the cluster also preventing the scheduler from assigning user tasks to that node.
+
+If you want only troubleshoot a node without moving existing tasks, you can simply *pause* the node
+```
+[root@swarm00 ~]# docker node update --availability pause swarm00
+ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
+3kru4v3w3lezys0tc9cnoczou *  swarm00   Ready   Pause         Leader
+e2kqucdbmkzm5ks6s2pciyg9v    swarm01   Ready   Active        Reachable
+mdmnfom70hh86go8up5zl272y    swarm02   Ready   Active        Reachable
+```
+
+To move things back, *active* the node
+```
+[root@swarm00 ~]# docker node update --availability pause swarm00
+ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
+3kru4v3w3lezys0tc9cnoczou *  swarm00   Ready   Active        Leader
+e2kqucdbmkzm5ks6s2pciyg9v    swarm01   Ready   Active        Reachable
+mdmnfom70hh86go8up5zl272y    swarm02   Ready   Active        Reachable
+```
 
 To demote the node from manager to a worker
 ```

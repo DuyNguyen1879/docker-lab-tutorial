@@ -1074,9 +1074,11 @@ To get the VIP of a service, inspect it
 ## High Availability
 A Swarm cluster with only a manager node is a single point of failure of the cluster control plane. When the control plane is no more available, user's services are still working on worker nodes but the sysadmin is no more able to control the cluster. Also, if something wrong happens on worker nodes, the cluster itself is not able to control the user's services. For this reasons, it is strongly recommended to protect the control plane with multiple managers.
 
-An odd number of managers in the swarm cluster is required to support manager node failures. Having an odd number of managers ensures that during an outage, the cluster quorum remains available to process requests when an outage occurs and the cluster is partitioned into two separate sets. A Swarm cluster (based on Raft) tolerates up to (N-1)/2 failures and requires a majority or quorum of (N/2)+1 members to agree on values proposed to the cluster.
+An odd number of managers in the swarm cluster is required to support manager node failures. Having an odd number of managers ensures that during an outage, the cluster quorum remains available to process requests when an outage occurs and the cluster is partitioned into two separate sets. A Swarm cluster tolerates up to (N-1)/2 failures and requires a majority or quorum of (N/2)+1 members to agree on values proposed to the cluster.
 
-According to the Raft alghoritm, the swarm cluster start a leader election process when the cluster is formed. With a single manager, we just have the leader 
+According to the [Raft](https://raft.github.io/) alghoritm, the swarm cluster start a leader election process when the cluster is formed. The leader is in charge of keep all changes to the system by taking a distributed consensus among other manager nodes.
+
+With a single manager, we just have the leader 
 ```
 [root@swarm00 ~]# docker node list
 ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
@@ -1096,7 +1098,7 @@ q5wjauy7i4fr7ictcsu2wkl68    swarm01   Ready   Active        Reachable
 r8zwpsx1rczpmoxk11i6fuk21    swarm02   Ready   Active        Reachable
 ```
 
-We have a leader election restart if the current leader goes down
+We have the leader election process restart if the current leader goes down for some reason and a new manager node becomes the leader 
 ```
 [root@swarm00 ~]# systemctl restart docker
 
@@ -1106,3 +1108,5 @@ b07ejkr444dm5bsbmey4hrd2r *  swarm00   Ready   Active        Reachable
 q5wjauy7i4fr7ictcsu2wkl68    swarm01   Ready   Active        Reachable
 r8zwpsx1rczpmoxk11i6fuk21    swarm02   Ready   Active        Leader
 ```
+
+There is no limit on the number of manager nodes. The decision about how many manager nodes to implement is a trade-off between performance and fault-tolerance. Why not have all nodes in a cluster to be managers? Intuitively, it is harder to reach consensus in large set of nodes since all writes have to go to and be acknowledged by all nodes. This leads to more network traffic and more latency.

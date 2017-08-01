@@ -1,5 +1,12 @@
 # Swarm Mode
-Swarm Node lets to have a complete all-built-in Docker cluster solution including orchestrator of containers and multi host networking. In this section, we are going to setup a simple three-nodes cluster based on Swarm with a focus on the networking.
+Swarm Node lets to have a complete all-built-in Docker cluster solution including orchestrator of containers and multi host networking. 
+Main goals accomplished by an orchestation system like Swarm are:
+
+  1. High Availability
+  2. Scaling
+  3. Load balancing
+
+In this section, we are going to setup a simple three-nodes cluster based on Swarm.
 
   * [Setup the Swarm](#setup-the-swarm)
   * [Swarm Networking](#swarm-networking)
@@ -11,9 +18,14 @@ Swarm Node lets to have a complete all-built-in Docker cluster solution includin
   * [Service Discovery](#service-discovery)
   * [High Availability](#high-availability)
 
-Details how to use Swarm Mode for deploying application can be found on Docker docs.
+A Swarm cluster of nodes is made of manager nodes and worker nodes:
 
-Initially, our cluster is made of three nodes: one master and two workers. Please, note that in Swarm Mode, a node can be master and worker at same time. Multiple masters, with a minimum of three are recommended in production for high availability reasons. Our setup uses a physical front network for accessing the applications and a separate physical back network for clustering.
+  * **Managers**: they are nodes responsible for the control plane, i.e. the management of the cluster and services running on it
+  * **Workers**: they are nodes running the user's services
+
+Initially, our cluster is made of three nodes: one manager and only two workers. Please, note that in Swarm Mode, a node can be manager and worker at same time, i.e. a manager node can also run user's services. Multiple managers, with a minimum of three are recommended in production for high availability of the control plane. Swarm manager nodes use the [Raft](https://raft.github.io/) consensus algorithm to manage the swarm state. Raft requires a majority of managers, also called the quorum, to agree on proposed updates to the swarm and storing the same consistent state across all the manager nodes.
+
+A Swarm cluster with only a manager node is a single point of failure. An odd number of managers in the swarm cluster is required to support manager node failures. Having an odd number of managers ensures that during a network partition, the quorum remains available to process requests when an outage occurs and the cluster is partitioned into two separate sets. Quorum is not guaranteed when more than two network partitions exist. Raft tolerates up to (N-1)/2 failures and requires a majority or quorum of (N/2)+1 members to agree on values proposed to the cluster.
 
 ## Setup the Swarm
 On all the three nodes, install the Docker engine. The following ports must be opened on the cluster back network:
@@ -31,12 +43,12 @@ Make sure the Docker engine daemon is started on all the host machines
 [root@swarm00 ~]# systemctl status docker
 ```
 
-Login tho the master node and create the swarm
+Login tho the manager node and create the swarm
 ```
 [root@swarm00 ~]# docker swarm init --advertise-addr ens33
 ```
 
-The ``--advertise-addr ens33`` option tells to advertise on the cluster back network attached to physical interface ``ens33``. The other nodes in the swarm must be able to access the manager via this interface.
+The ``--advertise-addr ens33`` option tells to advertise on the cluster back network attached to physical interface ``ens33``. The other nodes in the swarm must be able to access the manager via this interface. Our setup uses a physical front network ``ens32`` for accessing the user's services and a separate physical back network ``ens33`` for clustering traffic.
 
 Check the swarm node status
 ```
@@ -45,7 +57,7 @@ ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
 tkxuxun03da7y2bozka50mpxi *  swarm00   Ready   Active        Leader
 ```
 
-To add other nodes to the cluster, we need for a token from the swarm master
+To add other nodes to the cluster, as worker nodes, we need for a token from the swarm manager
 
 ```
 [root@swarm00 ~]# docker swarm join-token worker
@@ -65,7 +77,7 @@ Login to the other nodes and add them to the cluster
 This node joined a swarm as a worker.
 ```
 
-On the master, check the swarm
+On the manager, check the swarm
 ```
 [root@swarm00 ~]# docker node list
 ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
@@ -74,7 +86,81 @@ ryc6zlbxrhvblc7lk8pl3jsva    swarm02   Ready   Active
 tkxuxun03da7y2bozka50mpxi *  swarm00   Ready   Active        Leader
 ```
 
-Our cluster is up and running and ready to deploy services. However, before to do this, we'll go through a deep dive in swarm networking.
+A worker node can be promoted to manager role as following
+```
+[root@swarm00 ~]# docker node promote swarm01 swarm02
+
+[root@swarm00 ~]# docker node list
+
+ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
+3kru4v3w3lezys0tc9cnoczou *  swarm00   Ready   Active        Leader
+e2kqucdbmkzm5ks6s2pciyg9v    swarm01   Ready   Active        Reachable
+mdmnfom70hh86go8up5zl272y    swarm02   Ready   Active        Reachable
+```
+
+Also nodes can be directly added as manager by getting the token from an existing manager
+```
+[root@swarm00 ~]# docker swarm join-token manager
+To add a manager to this swarm, run the following command:
+
+    docker swarm join \
+    --token SWMTKN-1-06y3xg5vjkh0tzla9fodgp6zrzsqqus8974b75umbvxeemwds9-1dlmdl3jxiz27ptggus4d9plg \
+    10.10.10.60:2377
+```
+
+and running the join command on the new node
+```
+[root@swarm09 ~]# docker swarm join \
+    --token SWMTKN-1-06y3xg5vjkh0tzla9fodgp6zrzsqqus8974b75umbvxeemwds9-1dlmdl3jxiz27ptggus4d9plg \
+    10.10.10.60:2377
+```
+
+Adding manager nodes to a swarm, pay attention to the datacenter topology where to place them. For optimal high-availability, distribute manager nodes across a minimum of 3 availability zones to support failures of an entire set of machines.
+
+
+To demote a node from manager to a worker
+```
+[root@swarm00 ~]# run docker node demote swarm02
+```
+
+To remove the node from the swarm
+```
+[root@swarm00 ~]# run docker node rm swarm01
+```
+
+To rejoin the node to the swarm with a fresh state
+```
+[root@swarm00 ~]# docker swarm join swarm01
+```
+
+In production, consider to run user's services only on worker nodes to avoid resources starvation on CPU and memory. To avoid interference between manager operations and user's services, you can *drain* a manager node to make it unavailable for services
+```
+[root@swarm00 ~]# docker node update --availability drain swarm00
+ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
+3kru4v3w3lezys0tc9cnoczou *  swarm00   Ready   Drain         Leader
+e2kqucdbmkzm5ks6s2pciyg9v    swarm01   Ready   Active        Reachable
+mdmnfom70hh86go8up5zl272y    swarm02   Ready   Active        Reachable
+```
+
+When draining a node, the scheduler reassigns any user's services running on the node to other available worker nodes in the cluster also preventing the scheduler from assigning other services to that node.
+
+If you want only troubleshoot a node without moving existing services, you can simply *pause* the node
+```
+[root@swarm00 ~]# docker node update --availability pause swarm00
+ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
+3kru4v3w3lezys0tc9cnoczou *  swarm00   Ready   Pause         Leader
+e2kqucdbmkzm5ks6s2pciyg9v    swarm01   Ready   Active        Reachable
+mdmnfom70hh86go8up5zl272y    swarm02   Ready   Active        Reachable
+```
+
+To move things back, *active* the node
+```
+[root@swarm00 ~]# docker node update --availability pause swarm00
+ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
+3kru4v3w3lezys0tc9cnoczou *  swarm00   Ready   Active        Leader
+e2kqucdbmkzm5ks6s2pciyg9v    swarm01   Ready   Active        Reachable
+mdmnfom70hh86go8up5zl272y    swarm02   Ready   Active        Reachable
+```
 
 ## Swarm networking
 Swarm mode setup creates a networking layout based on the overlay network driver. An overlay network is a network that is built on top of another network. Nodes in the overlay network can be connected by virtual or logical links, each of which corresponds to a path through one or more physical links in the underlying network.
@@ -1189,82 +1275,5 @@ To get the VIP of a service, inspect it
 ```
 
 ## High Availability
-Swarm manager nodes use the [Raft](https://raft.github.io/) consensus algorithm to manage the swarm state. Raft requires a majority of managers, also called the quorum, to agree on proposed updates to the swarm and storing the same consistent state across all the manager nodes.
 
-A Swarm cluster with only a master node is a single point of failure. An odd number of managers in the swarm cluster is required to support manager node failures. Having an odd number of managers ensures that during a network partition, the quorum remains available to process requests when an outage occurs and the cluster is partitioned into two separate sets. Quorum is not guaranteed when more than two network partitions exist. Raft tolerates up to (N-1)/2 failures and requires a majority or quorum of (N/2)+1 members to agree on values proposed to the cluster.
-
-Worker node can be promoted to manager role as following
-```
-[root@swarm00 ~]# docker node promote swarm01 swarm02
-
-[root@swarm00 ~]# docker node list
-
-ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
-3kru4v3w3lezys0tc9cnoczou *  swarm00   Ready   Active        Leader
-e2kqucdbmkzm5ks6s2pciyg9v    swarm01   Ready   Active        Reachable
-mdmnfom70hh86go8up5zl272y    swarm02   Ready   Active        Reachable
-```
-
-Other nodes can be added as manager by getting the token from an existing manager
-```
-[root@swarm00 ~]# docker swarm join-token manager
-To add a manager to this swarm, run the following command:
-
-    docker swarm join \
-    --token SWMTKN-1-06y3xg5vjkh0tzla9fodgp6zrzsqqus8974b75umbvxeemwds9-1dlmdl3jxiz27ptggus4d9plg \
-    10.10.10.60:2377
-```
-
-and running the join command on the new node
-```
-[root@swarm09 ~]# docker swarm join \
-    --token SWMTKN-1-06y3xg5vjkh0tzla9fodgp6zrzsqqus8974b75umbvxeemwds9-1dlmdl3jxiz27ptggus4d9plg \
-    10.10.10.60:2377
-```
-
-Adding manager nodes to a swarm, pay attention to the datacenter topology where to place the managers. For optimal high-availability, distribute manager nodes across a minimum of 3 availability zones to support failures of an entire set of machines.
-
-Also in production, consider to run user tasks only on worker nodes to avoid resources starvation on CPU and memory. To avoid interference between manager node operation and user tasks, you can *drain* a manager node to make it unavailable for user task
-```
-[root@swarm00 ~]# docker node update --availability drain swarm00
-ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
-3kru4v3w3lezys0tc9cnoczou *  swarm00   Ready   Drain         Leader
-e2kqucdbmkzm5ks6s2pciyg9v    swarm01   Ready   Active        Reachable
-mdmnfom70hh86go8up5zl272y    swarm02   Ready   Active        Reachable
-```
-
-When draining a node, the scheduler reassigns any user tasks running on the node to other available worker nodes in the cluster also preventing the scheduler from assigning user tasks to that node.
-
-If you want only troubleshoot a node without moving existing tasks, you can simply *pause* the node
-```
-[root@swarm00 ~]# docker node update --availability pause swarm00
-ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
-3kru4v3w3lezys0tc9cnoczou *  swarm00   Ready   Pause         Leader
-e2kqucdbmkzm5ks6s2pciyg9v    swarm01   Ready   Active        Reachable
-mdmnfom70hh86go8up5zl272y    swarm02   Ready   Active        Reachable
-```
-
-To move things back, *active* the node
-```
-[root@swarm00 ~]# docker node update --availability pause swarm00
-ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
-3kru4v3w3lezys0tc9cnoczou *  swarm00   Ready   Active        Leader
-e2kqucdbmkzm5ks6s2pciyg9v    swarm01   Ready   Active        Reachable
-mdmnfom70hh86go8up5zl272y    swarm02   Ready   Active        Reachable
-```
-
-To demote the node from manager to a worker
-```
-[root@swarm00 ~]# run docker node demote swarm02
-```
-
-To remove the node from the swarm
-```
-[root@swarm00 ~]# run docker node rm swarm01
-```
-
-To rejoin the node to the swarm with a fresh state
-```
-[root@swarm00 ~]# docker swarm join swarm01
-```
 

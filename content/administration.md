@@ -3,8 +3,8 @@ In this section, we are going to see basic admin tasks about the docker engine a
 
   * [Configure the engine](#configure-the-engine)
   * [Securing the engine](#securing-the-engine)
-  * [Accessing the engine via APIs](#accessing-the-engine-via-apis)
   * [Securing the cluster](#securing-the-cluster)
+  * [Docker APIs](#docker-apis)
   
 ## Configure the engine
 After successfully installing and starting docker, the dockerd daemon runs with its default configuration. On CentOS systems, the docker engine is managed via systemd
@@ -205,7 +205,7 @@ On the client, force the TLS by setting the options
            --tlskey=$HOME/.docker/key.pem \
            --host=docker-engine:2376 version
 
-To secure client by default, wwithout adding tls and host info for every call to the engine, export the following environment variables in a bash profile ``docker-tls.rc`` file
+To secure client by default, without adding tls and host info for every call to the engine, export the following environment variables in a bash profile ``docker-tls.rc`` file
 
 ```bash
 export PS1='[\W(tls)]\$ '
@@ -220,8 +220,25 @@ Then source the file and connect the server
     [~(tls)]# docker version
 
 
-## Accessing the engine via APIs
-The docker engine provide a complete set of REST APIs. The APIs can be accessed with any HTTP client, but it also provide Python and Go SDKs.
+## Securing the cluster
+By default, the swarm cluster is encrypted with AES-GCM. Authentication between nodes partecipating into the cluster is done with mutual TLS.
+
+When you create a swarm the docker node designates itself as a manager node. By default, the manager node generates a new Certificate Authority (CA) along with a key pair, which are used to secure communications with other nodes joining the swarm. The certificates is rotated every 90 days.
+
+Certificates and keys are under ``/var/lib/docker/swarm/certificates/`` directory 
+
+    ll /var/lib/docker/swarm/certificates/
+    
+    -rw-r--r-- 1 root root 1376 Jul 14 19:00 swarm-node.crt
+    -rw------- 1 root root  302 Jul 14 19:00 swarm-node.key
+    -rw-r--r-- 1 root root  550 Jul 14 19:00 swarm-root-ca.crt
+
+The manager node also generates two tokens to use when you join additional nodes to the swarm: one worker token and one manager token. Each token includes the digest of the root CA’s certificate and a randomly generated secret. When a node joins the swarm, the joining node uses the digest to validate the root CA certificate from the remote manager. The remote manager uses the secret to ensure the joining node is an approved node.
+
+Each time a new node joins the swarm, the manager issues a certificate to the node. The certificate contains a randomly generated node ID to identify the node under the certificate common name (CN) and the role under the organizational unit (OU). The node ID serves as the cryptographically secure node identity for the lifetime of the node in the current swarm.
+
+## Docker APIs
+The docker engine provide a complete set of REST APIs.
 
 For example
 
@@ -288,6 +305,3 @@ REMAINING : []
 HOST      : tcp://docker-engine:2375
 VERSION   : 17.03.2-ee-4
 ```
-
-## Securing the cluster
-

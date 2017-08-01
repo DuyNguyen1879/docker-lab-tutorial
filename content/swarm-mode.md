@@ -729,12 +729,11 @@ In this section we are going to explore how swarm handles a service failover. Si
 Create a service with a replica 1
 ```
 [root@swarm00 ~]# docker service create \
->   --replicas 1 \
->   --name nodejs \
->   --publish 80:8080 \
->   --constraint 'node.role==worker' \
-> kalise/nodejs-web-app:latest
-9xcryw8i2i2wvslejlj6yjwry
+   --replicas 1 \
+   --name nodejs \
+   --publish 80:8080 \
+   --constraint 'node.role==worker' \
+   kalise/nodejs-web-app:latest
 
 [root@swarm00 ~]# docker service ps nodejs
 ID            NAME      IMAGE                         NODE     DESIRED STATE  CURRENT STATE           ERROR  PORTS
@@ -784,7 +783,7 @@ faapm76m2wgd   \_ nodejs.1  kalise/nodejs-web-app:latest  swarm01  Shutdown     
 We see the swarm detected the failure of the container running on node ``swarm01`` and then started a new container on the node ``swarm02`` to honor the number of replicas we set.
 
 ## Service Networks
-In this section, we're going to deploy services on dedicated networks. The overlay network driver permits swarm to create a complex layout of networks. This can be useful, for example, to deploy multi-tier applications. As example, we are goig to create a two-tier application made of a web server running on an internal network and a reverse proxy exposing the service to the outer world. 
+In this section, we're going to deploy services on dedicated networks. The overlay network driver permits swarm to create a complex layout of networks. This can be useful, for example, to deploy multi-tier applications.
 
 Create a new overlay network called ``internal``
 ```
@@ -834,35 +833,20 @@ eaef890efed3        none                null                local
 
 Then start a nodejs web service on this network
 ```
-[root@swarm00 ~]# docker service create  \
-          --replicas 1 \
-          --name nodejs \
-          --network internal  \
-          --constraint 'node.role==worker' kalise/nodejs-web-app:latest
-          
-iwy7j952hgm390peq6voorlab
+[root@swarm00 ~]# docker service create \
+       --replicas 1 \
+       --name nodejs \
+       --network internal \
+       --publish 80:8080 \
+       --constraint 'node.role==worker' \
+       kalise/nodejs-web-app:latest
 
 [root@swarm00 ~]# docker service ps nodejs
 ID            NAME      IMAGE                         NODE     DESIRED STATE  CURRENT STATE          ERROR  PORTS
 2ceiqgqalqnu  nodejs.1  kalise/nodejs-web-app:latest  swarm01  Running        Running 5 minutes ago
 ```
 
-Please note that we do not expose the container port, so the service will not be reachable from the outer world. This means that the container will not be attached to the ingress overlay network.
-
-To check this, login to the worker node and inspect the networks
-```
-[root@swarm01 ~]# docker network list
-NETWORK ID          NAME                DRIVER              SCOPE
-61a82e63de4b        bridge              bridge              local
-18ef9a1c2e08        docker_gwbridge     bridge              local
-5f03d7b5240a        host                host                local
-1qc6vhwhaeqn        ingress             overlay             swarm
-kq7sc5qu1wle        internal            overlay             swarm
-3cd5989ee74c        none                null                local
-
-[root@swarm01 ~]# docker network inspect internal
-[root@swarm01 ~]# docker network inspect ingress
-```
+Login to the worker node where service is running and inspect the networks
 
 ```json
 [
@@ -906,265 +890,6 @@ kq7sc5qu1wle        internal            overlay             swarm
         ]
     }
 ]
-```
-```json
-[
-    {
-        "Name": "ingress",
-        "Id": "1qc6vhwhaeqn0n9z2hdlawz72",
-        "Created": "2017-03-30T15:23:26.176422263+02:00",
-        "Scope": "swarm",
-        "Driver": "overlay",
-        "EnableIPv6": false,
-        "IPAM": {
-            "Driver": "default",
-            "Options": null,
-            "Config": [
-                {
-                    "Subnet": "10.255.0.0/16",
-                    "Gateway": "10.255.0.1"
-                }
-            ]
-        },
-        "Internal": false,
-        "Attachable": false,
-        "Containers": {
-            "ingress-sbox": {
-                "Name": "ingress-endpoint",
-                "EndpointID": "2c4e61bcb057228e256412b3763923389b582337dc29faa3fe7e80f1caba4b92",
-                "MacAddress": "02:42:0a:ff:00:04",
-                "IPv4Address": "10.255.0.4/16",
-                "IPv6Address": ""
-            }
-        },
-        "Options": {
-            "com.docker.network.driver.overlay.vxlanid_list": "4096"
-        },
-        "Labels": {
-            "com.docker.swarm.internal": "true"
-        },
-        "Peers": [
-            {
-                "Name": "swarm01-653a2c76ce28",
-                "IP": "192.168.2.61"
-            },
-            {
-                "Name": "swarm00-c745a46fe91e",
-                "IP": "192.168.2.60"
-            },
-            {
-                "Name": "swarm02-5d0526aaf2aa",
-                "IP": "192.168.2.62"
-            }
-        ]
-    }
-]
-```
-
-Check the namespaces
-```
-[root@swarm01 ~]# ip netns
-d0ac7f14f96a (id: 55)
-1-kq7sc5qu1w (id: 54)
-1-1qc6vhwhae (id: 0)
-ingress_sbox (id: 1)
-
-[root@swarm01 ~]# ip netns exec d0ac7f14f96a ifconfig
-eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1450
-        inet 172.30.0.3  netmask 255.255.255.0  broadcast 0.0.0.0
-        inet6 fe80::42:acff:fe1e:3  prefixlen 64  scopeid 0x20<link>
-        ether 02:42:ac:1e:00:03  txqueuelen 0  (Ethernet)
-
-eth1: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
-        inet 172.18.0.3  netmask 255.255.0.0  broadcast 0.0.0.0
-        inet6 fe80::42:acff:fe12:3  prefixlen 64  scopeid 0x20<link>
-        ether 02:42:ac:12:00:03  txqueuelen 0  (Ethernet)
-...
-```
-
-Now, create a new service proxying from the outer world to the internal nodejs service.
-```
-[root@swarm00 ~]# docker service create \
-    --replicas 1 \
-    --name proxy \
-    --publish 80:80 \
-    --network internal \
-    --constraint 'node.role==worker' \
-    --env REMOTE_PORT=8080 \
-    --env REMOTE_SERVER=nodejs \
-    kalise/http-proxy-server:latest
-    
-[root@swarm00 ~]# docker service ps proxy
-ID            NAME     IMAGE                            NODE     DESIRED STATE  CURRENT STATE         ERROR  PORTS
-po4ffshetwy9  proxy.1  kalise/http-proxy-server:latest  swarm02  Running        Running 1 hours ago
-```
-
-This service exposes its port 80 to the outer world but at same time it is connected to the internal overlay network in order to talk with the nodejs service listening on port 8080 of the same network. This meaans the proxy service is attached both on the ingress and the internal overlay network (in addition to the gateway bridge network). Login to the worker node and let's to see.
-```
-[root@swarm02 ~]# docker network list
-NETWORK ID          NAME                DRIVER              SCOPE
-df3b973995eb        bridge              bridge              local
-c5acc9e01486        docker_gwbridge     bridge              local
-dbf1d738db39        host                host                local
-1qc6vhwhaeqn        ingress             overlay             swarm
-kq7sc5qu1wle        internal            overlay             swarm
-4f362da443ba        none                null                local
-
-[root@swarm02 ~]# docker network inspect ingress
-[root@swarm02 ~]# docker network inspect internal
-```
-
-```json
-[
-    {
-        "Name": "ingress",
-        "Id": "1qc6vhwhaeqn0n9z2hdlawz72",
-        "Created": "2017-03-30T11:10:35.773689442+02:00",
-        "Scope": "swarm",
-        "Driver": "overlay",
-        "EnableIPv6": false,
-        "IPAM": {
-            "Driver": "default",
-            "Options": null,
-            "Config": [
-                {
-                    "Subnet": "10.255.0.0/16",
-                    "Gateway": "10.255.0.1"
-                }
-            ]
-        },
-        "Internal": false,
-        "Attachable": false,
-        "Containers": {
-            "dc5186c4277fe35aa4fb8cf9b39da617c807f946937fc211e70e7384d5b5e212": {
-                "Name": "proxy.1.po4ffshetwy9hpe563tkmcvuc",
-                "EndpointID": "98e4ae02c5370a19e63b544e67d94caa4c6c86be744ac05d217d6855520a5b18",
-                "MacAddress": "02:42:0a:ff:00:06",
-                "IPv4Address": "10.255.0.6/16",
-                "IPv6Address": ""
-            },
-            "ingress-sbox": {
-                "Name": "ingress-endpoint",
-                "EndpointID": "b014aec848537a690325e2299757cec0f237ab2a7457aebd44ad431b07ffabf0",
-                "MacAddress": "02:42:0a:ff:00:05",
-                "IPv4Address": "10.255.0.5/16",
-                "IPv6Address": ""
-            }
-        },
-        "Options": {
-            "com.docker.network.driver.overlay.vxlanid_list": "4096"
-        },
-        "Labels": {},
-        "Peers": [
-            {
-                "Name": "swarm02-5d0526aaf2aa",
-                "IP": "192.168.2.62"
-            },
-            {
-                "Name": "swarm00-c745a46fe91e",
-                "IP": "192.168.2.60"
-            },
-            {
-                "Name": "swarm01-653a2c76ce28",
-                "IP": "192.168.2.61"
-            }
-        ]
-    }
-]
-```
-
-```json
-[
-    {
-        "Name": "internal",
-        "Id": "kq7sc5qu1wlelrat8wnqob2g2",
-        "Created": "2017-03-30T19:38:33.164705153+02:00",
-        "Scope": "swarm",
-        "Driver": "overlay",
-        "EnableIPv6": false,
-        "IPAM": {
-            "Driver": "default",
-            "Options": null,
-            "Config": [
-                {
-                    "Subnet": "172.30.0.0/24",
-                    "Gateway": "172.30.0.1"
-                }
-            ]
-        },
-        "Internal": false,
-        "Attachable": false,
-        "Containers": {
-            "dc5186c4277fe35aa4fb8cf9b39da617c807f946937fc211e70e7384d5b5e212": {
-                "Name": "proxy.1.po4ffshetwy9hpe563tkmcvuc",
-                "EndpointID": "206cec50160e530f27a92522c37dbdd490e19bb442c8e8b21acaa9170f9f1229",
-                "MacAddress": "02:42:ac:1e:00:05",
-                "IPv4Address": "172.30.0.5/24",
-                "IPv6Address": ""
-            }
-        },
-        "Options": {
-            "com.docker.network.driver.overlay.vxlanid_list": "4097"
-        },
-        "Labels": {},
-        "Peers": [
-            {
-                "Name": "swarm01-653a2c76ce28",
-                "IP": "192.168.2.61"
-            },
-            {
-                "Name": "swarm02-5d0526aaf2aa",
-                "IP": "192.168.2.62"
-            }
-        ]
-    }
-]
-```
-
-See the namespaces
-```
-[root@swarm02 ~]# ip netns list
-0567c295dd86 (id: 55)
-1-kq7sc5qu1w (id: 54)
-1-1qc6vhwhae (id: 0)
-ingress_sbox (id: 1)
-
-[root@swarm02 ~]# ip netns exec 0567c295dd86 ifconfig
-eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1450
-        inet 10.255.0.6  netmask 255.255.0.0  broadcast 0.0.0.0
-        inet6 fe80::42:aff:feff:6  prefixlen 64  scopeid 0x20<link>
-        ether 02:42:0a:ff:00:06  txqueuelen 0  (Ethernet)
-
-eth1: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
-        inet 172.18.0.3  netmask 255.255.0.0  broadcast 0.0.0.0
-        inet6 fe80::42:acff:fe12:3  prefixlen 64  scopeid 0x20<link>
-        ether 02:42:ac:12:00:03  txqueuelen 0  (Ethernet)
-
-eth2: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1450
-        inet 172.30.0.5  netmask 255.255.255.0  broadcast 0.0.0.0
-        inet6 fe80::42:acff:fe1e:5  prefixlen 64  scopeid 0x20<link>
-        ether 02:42:ac:1e:00:05  txqueuelen 0  (Ethernet)
-
-[root@swarm02 ~]# ip netns exec 0567c295dd86 netstat -nr
-Kernel IP routing table
-Destination     Gateway         Genmask         Flags   MSS Window  irtt Iface
-0.0.0.0         172.18.0.1      0.0.0.0         UG        0 0          0 eth1
-10.255.0.0      0.0.0.0         255.255.0.0     U         0 0          0 eth0
-172.18.0.0      0.0.0.0         255.255.0.0     U         0 0          0 eth1
-172.30.0.0      0.0.0.0         255.255.255.0   U         0 0          0 eth2
-```
-
-A request for ``http://10.10.10.60:80`` will follow this path:
-
-   1. The NAT chain of the host interface route the request to the ingress sandbox on the bridge gateway
-   2. The internal load balancer of the ingress sandbox route the request to the proxy container via the ingress overlay network
-   3. The proxy container forwards the request to the nodejs container via the internal overlay network
-
-Then the request comes back via the reverse path to the requesting client:
-
-```
-[root@swarm00 ~]# curl 10.10.10.60:80
-Hello World! from 172.30.0.3
 ```
 
 ## Service Discovery

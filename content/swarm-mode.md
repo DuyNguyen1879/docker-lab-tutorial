@@ -783,12 +783,11 @@ faapm76m2wgd   \_ nodejs.1  kalise/nodejs-web-app:latest  swarm01  Shutdown     
 We see the swarm detected the failure of the container running on node ``swarm01`` and then started a new container on the node ``swarm02`` to honor the number of replicas we set.
 
 ## Service Networks
-In this section, we're going to deploy services on dedicated networks. The overlay network driver permits swarm to create a complex layout of networks. This can be useful, for example, to deploy multi-tier applications.
+The overlay network model permits swarm to create a complex layout of networks. In this section, we're going to deploy services on dedicated custom network. Service containers will be attached to the internal network. However, the ingress network and the ingress sandbox still remain the entry point for accessing the service from the external world. To accomplish this, the swarm will attach the service containers also on the ingress network as for the previous example. 
 
 Create a new overlay network called ``internal``
 ```
 [root@swarm00 ~]# docker network create --driver=overlay --subnet=172.30.0.0/24 internal
-kq7sc5qu1wlelrat8wnqob2g2
 
 [root@swarm00 ~]# docker network list
 NETWORK ID          NAME                DRIVER              SCOPE
@@ -798,9 +797,10 @@ f0c9ed46f0b6        host                host                local
 1qc6vhwhaeqn        ingress             overlay             swarm
 kq7sc5qu1wle        internal            overlay             swarm
 eaef890efed3        none                null                local
-
-[root@swarm00 ~]# docker network inspect internal
 ```
+
+Inspecting the internal network just created
+
 ```json
 [
     {
@@ -840,39 +840,25 @@ Then start a nodejs web service on this network
        --publish 80:8080 \
        --constraint 'node.role==worker' \
        kalise/nodejs-web-app:latest
+```
 
+Check where the service is running
+```
 [root@swarm00 ~]# docker service ps nodejs
 ID            NAME      IMAGE                         NODE     DESIRED STATE  CURRENT STATE          ERROR  PORTS
 2ceiqgqalqnu  nodejs.1  kalise/nodejs-web-app:latest  swarm01  Running        Running 5 minutes ago
 ```
 
-Login to the worker node where service is running and inspect the networks
+Login to the worker node where service is running. By inspecting the internal network, we see the service container is attached to that network as expected.  
 
 ```json
-[
-    {
-        "Name": "internal",
-        "Id": "kq7sc5qu1wlelrat8wnqob2g2",
-        "Created": "2017-03-30T19:16:31.479851884+02:00",
-        "Scope": "swarm",
-        "Driver": "overlay",
-        "EnableIPv6": false,
-        "IPAM": {
-            "Driver": "default",
-            "Options": null,
-            "Config": [
-                {
-                    "Subnet": "172.30.0.0/24",
-                    "Gateway": "172.30.0.1"
-                }
-            ]
-        },
+...
         "Internal": false,
         "Attachable": false,
         "Containers": {
-            "8b52f601b6503336dc5a048238b99d54e560efa4f0da1d5134642f92df80cc61": {
-                "Name": "nodejs.1.2ceiqgqalqnub8pzzexiamnr2",
-                "EndpointID": "bc91e998b8a83e3ae41b84801afe57c36a53ffef4c325da78c80c3e5ab5a3ee8",
+            "9b2e3c6c9bcb052a61263eaf696c7352ae33a95e441c604e9929e74d85d0ea1e": {
+                "Name": "nodejs.1.o6fo1nik5sh23ju7f3d6n65ki",
+                "EndpointID": "1e8471d06db53c6c789189e716af3c870093814ad62d29b4d6b5dba9da6fc4e3",
                 "MacAddress": "02:42:ac:1e:00:03",
                 "IPv4Address": "172.30.0.3/24",
                 "IPv6Address": ""
@@ -882,15 +868,67 @@ Login to the worker node where service is running and inspect the networks
             "com.docker.network.driver.overlay.vxlanid_list": "4097"
         },
         "Labels": {},
-        "Peers": [
-            {
-                "Name": "swarm01-653a2c76ce28",
-                "IP": "192.168.2.61"
-            }
-        ]
-    }
-]
+...
+
 ```
+
+By inspecting the ingress network, we see also the service container is attached on that network as well as the ingress sandbox
+```json
+...
+        "Internal": false,
+        "Attachable": false,
+        "Containers": {
+            "9b2e3c6c9bcb052a61263eaf696c7352ae33a95e441c604e9929e74d85d0ea1e": {
+                "Name": "nodejs.1.o6fo1nik5sh23ju7f3d6n65ki",
+                "EndpointID": "ddf9d3c61e0ea8d112006ea20caf70050a71cd20609e1b216f29baf7cdd6cf98",
+                "MacAddress": "02:42:0a:ff:00:08",
+                "IPv4Address": "10.255.0.8/16",
+                "IPv6Address": ""
+            },
+            "ingress-sbox": {
+                "Name": "ingress-endpoint",
+                "EndpointID": "5eaa13364c6edbd1541f4401aa1ef275d2df7f659bda6e39647745a3f17e9c5d",
+                "MacAddress": "02:42:0a:ff:00:06",
+                "IPv4Address": "10.255.0.6/16",
+                "IPv6Address": ""
+            }
+        },
+        "Options": {
+            "com.docker.network.driver.overlay.vxlanid_list": "4096"
+        },
+...
+```
+
+Also the service container is attached to the gateway bridge network since it has to access the external world via NAT as per docker networking model
+```json
+...
+        "Internal": false,
+        "Attachable": false,
+        "Containers": {
+            "9b2e3c6c9bcb052a61263eaf696c7352ae33a95e441c604e9929e74d85d0ea1e": {
+                "Name": "gateway_9b2e3c6c9bcb",
+                "EndpointID": "1a1a6e3f2f27944f9af8980f6bfa26ff8d1a38b4641ac7368d966055f7245671",
+                "MacAddress": "02:42:ac:12:00:03",
+                "IPv4Address": "172.18.0.3/16",
+                "IPv6Address": ""
+            },
+            "ingress-sbox": {
+                "Name": "gateway_ingress-sbox",
+                "EndpointID": "686c50270cbd251dd02acc73ffabdce77067ecf5dcf9e6e01552d2ca1eef5a65",
+                "MacAddress": "02:42:ac:12:00:02",
+                "IPv4Address": "172.18.0.2/16",
+                "IPv6Address": ""
+            }
+        },
+        "Options": {
+            "com.docker.network.bridge.enable_icc": "false",
+            "com.docker.network.bridge.enable_ip_masquerade": "true",
+            "com.docker.network.bridge.name": "docker_gwbridge"
+        },
+        "Labels": {}
+...
+```
+
 
 ## Service Discovery
 As for single host docker networking, the docker swarm uses embedded DNS to provide service discovery for containers running in a swarm. Docker Engine has an embedded DNS server ``nameserver 127.0.0.11`` that provides name resolution to all of the containers. Each container has a DNS resolver that forwards DNS queries to engine, which acts as a DNS server. Docker Engine then checks if the DNS query belongs to a container or service on each network that the requesting container belongs to. If it does, then Docker Engine looks up the IP address that matches a container or service's name in its key-value store and returns the IP address of the container or the  Virtual IP (VIP) associated to the service. Then it sends back the answer to the requester. In case of the service, the VIP is used for load balancing requests to container replicas providing the service.

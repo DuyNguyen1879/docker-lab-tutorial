@@ -1,9 +1,10 @@
-# Admin the Docker Engine
-In this section, we are going to see basic admin tasks about the Docker Engine. As reference in this tutorial, we are using CentOS 7 Operating System. Tasks can behave different on other systems.
+# Administration tasks
+In this section, we are going to see basic admin tasks about the docker engine and the swarm cluster. As reference in this tutorial, we are using CentOS 7 Operating System. Tasks can be different on other systems.
 
   * [Configure the engine](#configure-the-engine)
-  * [Securing the engine with TLS](#securing-the-engine-with-tls)
-  * [Accessing the engine with APIs](#accessing-the-engine-with-apis)
+  * [Securing the engine](#securing-the-engine)
+  * [Accessing the engine via APIs](#accessing-the-engine-via-apis)
+  * [Securing the cluster](#securing-the-cluster)
   
 ## Configure the engine
 After successfully installing and starting docker, the dockerd daemon runs with its default configuration. On CentOS systems, the docker engine is managed via systemd
@@ -34,7 +35,7 @@ The docker engine, by default, is listening for client connections on the ``/var
 }
 ```
 
-## Securing the engine with TLS
+## Securing the engine
 By default docker engine has no authentication or authorization, relying instead on the filesystem security of its unix socket which by default is only accessible by the root user. For accessing docker engine via remote clients (both gui and cli), it is possible to secure it via TLS. To provide proof of identity, Docker supports TLS certificates both on the server and the client side. When set up correctly, it will only allow clients and servers with a certificate signed by a specific CA to talk to eachother.
 
 On any Linux machine with OpenSSL installed, create a folder where store certificates and keys
@@ -219,7 +220,7 @@ Then source the file and connect the server
     [~(tls)]# docker version
 
 
-## Accessing the engine with APIs
+## Accessing the engine via APIs
 The docker engine provide a complete set of REST APIs. The APIs can be accessed with any HTTP client, but it also provide Python and Go SDKs.
 
 For example
@@ -287,3 +288,6 @@ REMAINING : []
 HOST      : tcp://docker-engine:2375
 VERSION   : 17.03.2-ee-4
 ```
+
+## Securing the cluster
+

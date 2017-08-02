@@ -223,7 +223,7 @@ Then source the file and connect the server
 ## Securing the cluster
 By default, the swarm cluster is encrypted with AES-GCM. Authentication between nodes partecipating into the cluster is done with mutual TLS.
 
-When you create a swarm the docker node designates itself as a manager node. By default, the manager node generates a new Certificate Authority (CA) along with a key pair, which are used to secure communications with other nodes joining the swarm. The certificates is rotated every 90 days.
+When you create a swarm the docker node designates itself as a manager node. By default, the manager node generates a new Certificate Authority (CA) along with a key pair, made of public key ``swarm-node.crt`` and a private key ``swarm-node.key``, which are used to secure communications with other nodes joining the swarm. The certificates is rotated every 90 days.
 
 Certificates and keys are under ``/var/lib/docker/swarm/certificates/`` directory 
 
@@ -233,9 +233,31 @@ Certificates and keys are under ``/var/lib/docker/swarm/certificates/`` director
     -rw------- 1 root root  302 Jul 14 19:00 swarm-node.key
     -rw-r--r-- 1 root root  550 Jul 14 19:00 swarm-root-ca.crt
 
-The manager node also generates two tokens to use when you join additional nodes to the swarm: one worker token and one manager token. Each token includes the digest of the root CA’s certificate and a randomly generated secret. When a node joins the swarm, the joining node uses the digest to validate the root CA certificate from the remote manager. The remote manager uses the secret to ensure the joining node is an approved node.
+Each time a new node joins the swarm, the manager issues a certificate to that node. The certificate contains a randomly generated node ID to identify the node under the certificate common name (CN) and the role under the organizational unit (OU). The node ID serves as secure node identity for the lifetime of the node in the current swarm.
 
-Each time a new node joins the swarm, the manager issues a certificate to the node. The certificate contains a randomly generated node ID to identify the node under the certificate common name (CN) and the role under the organizational unit (OU). The node ID serves as the cryptographically secure node identity for the lifetime of the node in the current swarm.
+To inspect the root certificate
+```
+[root@swarm00 ~]# openssl x509 -in /var/lib/docker/swarm/certificates/swarm-root-ca.crt -noout -text
+
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number:
+            1b:ec:00:4b:96:30:f5:fc:2a:fa:43:86:fd:3f:7e:c9:34:45:0e:ef
+    Signature Algorithm: ecdsa-with-SHA256
+        Issuer: CN=swarm-ca
+        Validity
+            Not Before: Aug  2 08:06:00 2017 GMT
+            Not After : Jul 28 08:06:00 2037 GMT
+        Subject: CN=swarm-ca
+        Subject Public Key Info:
+            Public Key Algorithm: id-ecPublicKey
+                Public-Key: (256 bit)
+...
+
+```
+
+The manager node also generates two tokens to use when you join additional nodes to the swarm: one worker token and one manager token. Each token includes the digest of the root CA’s certificate and a randomly generated secret. When a new node joins the swarm, the joining node uses the digest to validate the root CA certificate from the remote manager. The remote manager uses the secret to ensure the joining node is an approved node.
 
 ## Docker APIs
 The docker engine provide a complete set of REST APIs.

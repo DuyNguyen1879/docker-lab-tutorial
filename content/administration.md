@@ -261,7 +261,29 @@ Certificates and keys are under ``/var/lib/docker/swarm/certificates/`` director
 
 Each time a new node joins the swarm, the manager issues a certificate to that node. The certificate contains a randomly generated node ID to identify the node under the certificate common name (CN) and the role under the organizational unit (OU). The node ID serves as secure node identity for the lifetime of the node in the current swarm.
 
-The manager node also generates two tokens to use when you join additional nodes to the swarm: one worker token and one manager token. Each token includes the digest of the root CA’s certificate and a randomly generated secret. When a new node joins the swarm, the joining node uses the digest to validate the root CA certificate from the remote manager. The remote manager uses the secret to ensure the joining node is an approved node.
+The manager node also generates two tokens to use when you join additional nodes to the swarm: one worker token and one manager token. Each token includes the digest of the root CA’s certificate and a randomly generated secret.
+
+To generate a manager token
+```
+[root@swarm00 ~]# docker swarm join-token manager
+To add a manager to this swarm, run the following command:
+
+    docker swarm join \
+    --token SWMTKN-1-0a1z3yz75jsin2rf5az5y6ylk8uihdwdb7nmxz0uvc9icnmbg2-dewdemfe3da4dq8aj18a7jnce \
+    192.168.2.60:2377
+```
+
+For a worker token
+```
+[root@swarm00 ~]# docker swarm join-token worker
+To add a worker to this swarm, run the following command:
+
+    docker swarm join \
+    --token SWMTKN-1-0a1z3yz75jsin2rf5az5y6ylk8uihdwdb7nmxz0uvc9icnmbg2-1ij50ku39k2q5nn0gmr5x6f6j \
+    192.168.2.60:2377
+```
+
+When a new node joins the swarm, the joining node uses the digest to validate the root CA certificate from the remote manager. The remote manager uses the secret to ensure the joining node is an approved node.
 
 ## Docker APIs
 The docker engine provide a complete set of REST APIs.

@@ -142,6 +142,32 @@ Sign the certificate
 
 When a certificate contains alternative names, the Common Name is ignored. Newer certificates produced by CA may not even include any Common Names. For this reason, include all desired hostnames on the alternative names configuration file.
 
+To inspect the server certificate
+```
+openssl x509 -in /etc/docker/ssl/server-cert.pem -noout -text
+
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 15560757987512340384 (0xd7f2eaf1f97ecfa0)
+    Signature Algorithm: sha256WithRSAEncryption
+        Issuer: C=IT, ST=Italy, L=Milan, O=NoverIT, CN=kalise
+        Validity
+            Not Before: Jul 13 20:41:44 2017 GMT
+            Not After : Jul 11 20:41:44 2027 GMT
+        Subject: CN=docker-engine
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+                Public-Key: (4096 bit)
+                Modulus:
+                ...
+        X509v3 extensions:
+            X509v3 Subject Alternative Name:
+                DNS:swarm00, IP Address:10.10.10.60, DNS:swarm01, IP Address:10.10.10.61, DNS:swarm02, IP Address:10.10.10.62, DNS:localhost, IP Address:127.0.0.1
+    Signature Algorithm: sha256WithRSAEncryption
+    ...
+```
+
 ### Create certificate and key for the client
 Since TLS authentication in docker is a two way authentication between client and server, we need to create a client's keys pair. Create the private key ``key.pem`` file for the docker client.
 
@@ -234,28 +260,6 @@ Certificates and keys are under ``/var/lib/docker/swarm/certificates/`` director
     -rw-r--r-- 1 root root  550 Jul 14 19:00 swarm-root-ca.crt
 
 Each time a new node joins the swarm, the manager issues a certificate to that node. The certificate contains a randomly generated node ID to identify the node under the certificate common name (CN) and the role under the organizational unit (OU). The node ID serves as secure node identity for the lifetime of the node in the current swarm.
-
-To inspect the root certificate
-```
-[root@swarm00 ~]# openssl x509 -in /var/lib/docker/swarm/certificates/swarm-root-ca.crt -noout -text
-
-Certificate:
-    Data:
-        Version: 3 (0x2)
-        Serial Number:
-            1b:ec:00:4b:96:30:f5:fc:2a:fa:43:86:fd:3f:7e:c9:34:45:0e:ef
-    Signature Algorithm: ecdsa-with-SHA256
-        Issuer: CN=swarm-ca
-        Validity
-            Not Before: Aug  2 08:06:00 2017 GMT
-            Not After : Jul 28 08:06:00 2037 GMT
-        Subject: CN=swarm-ca
-        Subject Public Key Info:
-            Public Key Algorithm: id-ecPublicKey
-                Public-Key: (256 bit)
-...
-
-```
 
 The manager node also generates two tokens to use when you join additional nodes to the swarm: one worker token and one manager token. Each token includes the digest of the root CA’s certificate and a randomly generated secret. When a new node joins the swarm, the joining node uses the digest to validate the root CA certificate from the remote manager. The remote manager uses the secret to ensure the joining node is an approved node.
 

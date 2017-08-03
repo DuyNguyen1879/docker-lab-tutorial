@@ -163,7 +163,10 @@ Certificate:
                 ...
         X509v3 extensions:
             X509v3 Subject Alternative Name:
-                DNS:swarm00, IP Address:10.10.10.60, DNS:swarm01, IP Address:10.10.10.61, DNS:swarm02, IP Address:10.10.10.62, DNS:localhost, IP Address:127.0.0.1
+                DNS:swarm00, IP Address:10.10.10.60,
+                DNS:swarm01, IP Address:10.10.10.61,
+                DNS:swarm02, IP Address:10.10.10.62,
+                DNS:localhost, IP Address:127.0.0.1
     Signature Algorithm: sha256WithRSAEncryption
     ...
 ```

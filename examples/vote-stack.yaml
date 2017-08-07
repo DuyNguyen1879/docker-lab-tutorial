@@ -1,0 +1,64 @@
+version: "3"
+services:
+
+  vote:
+    image: docker.io/kalise/flask-vote-app:latest
+    environment:
+      DB_TYPE: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: votedb
+      DB_USER: user
+      DB_PASS: password
+    ports:
+      - "20000:5000"
+    networks:
+      - application_network
+    volumes:
+      - log-volume:/app/log:rw
+    deploy:
+      mode: replicated
+      replicas: 1
+      update_config:
+        parallelism: 1
+        delay: 30s
+        failure_action: pause
+        max_failure_ratio: 0
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints: [node.role == worker]
+
+  mysql:
+    image: mysql/mysql-server:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      #MYSQL_RANDOM_ROOT_PASSWORD: yes
+      MYSQL_DATABASE: votedb
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+    volumes:
+      - data:/var/lib/mysql:rw
+    networks:
+      - application_network
+    deploy:
+      replicas: 1
+      placement:
+        constraints: [node.role == worker]
+
+volumes:
+  log-volume:
+    driver: local
+
+  data:
+    driver: local
+
+networks:
+  application_network:
+    driver: overlay
+    driver_opts:
+      com.docker.network.driver.overlay.vxlanid_list: 9000
+    ipam:
+     driver: default
+     config:
+       - subnet: 172.128.1.0/24

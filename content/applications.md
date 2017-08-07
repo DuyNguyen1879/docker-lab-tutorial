@@ -13,24 +13,30 @@ A stack is a collection of services that make up an application in a specific en
 
 Also, stack files define environment variables, deployment tags, the number of containers, and related environment-specific configurations like networks and shared volumes.
 
-Here a simple example of a two-tier application made of a nodejs web server running on port 8080 and a proxy in front of it running on the port 80. The two services are linked via an internal overlay network.
+Here a simple example of a two-tier application made of a web app running and a mysql database in the backend. The two services are linked via an internal overlay network.
 
-Here the stack definition
+Here the stack definition as for ``vote-stack.yaml`` file
 ```yaml
----
 version: "3"
 services:
 
-  proxy:
-    image: docker.io/kalise/http-proxy-server:latest
-    ports:
-      - "80:80"
+  vote:
+    image: docker.io/kalise/flask-vote-app:latest
     environment:
-      REMOTE_PORT: 8080
-      REMOTE_SERVER: nodejs
+      DB_TYPE: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: votedb
+      DB_USER: user
+      DB_PASS: password
+    ports:
+      - "20000:5000"
     networks:
       - application_network
+    volumes:
+      - log-volume:/app/log:rw
     deploy:
+      mode: replicated
       replicas: 1
       update_config:
         parallelism: 1
@@ -42,29 +48,28 @@ services:
       placement:
         constraints: [node.role == worker]
 
-  nodejs:
-    image: docker.io/kalise/nodejs-web-app:latest
+  mysql:
+    image: mysql/mysql-server:latest
     environment:
-      MESSAGE: 'Hello Docker Swarm'
+      MYSQL_ROOT_PASSWORD: password
+      #MYSQL_RANDOM_ROOT_PASSWORD: yes
+      MYSQL_DATABASE: votedb
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+    volumes:
+      - data:/var/lib/mysql:rw
     networks:
       - application_network
-    volumes:
-      - log-volume:/var/log:rw
     deploy:
-      mode: replicated
-      replicas: 2
-      update_config:
-        parallelism: 1
-        delay: 30s
-        failure_action: pause
-        max_failure_ratio: 0
-      restart_policy:
-        condition: on-failure
+      replicas: 1
       placement:
         constraints: [node.role == worker]
 
 volumes:
   log-volume:
+    driver: local
+
+  data:
     driver: local
 
 networks:
@@ -91,10 +96,10 @@ Starting from the services section, let's to detail all the options:
 
 On the manager node, deploy the stack above
 ```
-[root@swarm00 ~]# docker stack deploy --compose-file nodejs-app-stack.yml myapp
+[root@swarm00 ~]# docker stack deploy --compose-file vote-stack.yaml myapp
 Creating network myapp_internal
-Creating service myapp_nodejs
-Creating service myapp_proxy
+Creating service myapp_mysql
+Creating service myapp_vote
 
 [root@swarm00 ~]# docker stack list
 NAME   SERVICES
@@ -102,66 +107,35 @@ myapp  2
 
 [root@swarm00 ~]# docker stack services myapp
 ID            NAME          MODE        REPLICAS  IMAGE
-38decu8yxubf  myapp_nodejs  replicated  2/2       docker.io/kalise/nodejs-web-app:latest
-d5dpzidowg31  myapp_proxy   replicated  1/1       docker.io/kalise/http-proxy-server:latest
+38decu8yxubf  myapp_vote    replicated  1/1       docker.io/kalise/flask-vote-app:latest
+d5dpzidowg31  myapp_mysql   replicated  1/1       mysql/mysql-server:latest
 
 [root@swarm00 ~]# docker stack ps myapp
 ID            NAME            IMAGE                                      NODE     DESIRED STATE  CURRENT STATE           
-ztjwvthbckr6  myapp_proxy.1   docker.io/kalise/http-proxy-server:latest  swarm02  Running        Running 38 seconds ago
-6cxjz59qgmel  myapp_nodejs.1  docker.io/kalise/nodejs-web-app:latest     swarm01  Running        Running 40 seconds ago
-xgtr58ildc0m  myapp_nodejs.2  docker.io/kalise/nodejs-web-app:latest     swarm02  Running        Running 40 seconds ago
+ztjwvthbckr6  myapp_proxy.1   docker.io/kalise/flask-vote-app:latest     swarm02  Running        Running 38 seconds ago
+6cxjz59qgmel  myapp_nodejs.1  mysql/mysql-server:latest                  swarm01  Running        Running 40 seconds ago
 ```
 
-We can see our application made of two linked services and three containers since proxy service has been defined with replica 1 and nodejs service has been defined with replica 2. Also an overlay network has been created.
+We can see our application made of two linked services. Also an overlay network has been created.
 
 Let's to inspect the proxy and nodejs services
 ```
 [root@swarm00 ~]# docker service list
 ID            NAME          MODE        REPLICAS  IMAGE
-tvom1dh8dr3h  myapp_proxy   replicated  1/1       docker.io/kalise/http-proxy-server:latest
-xfme1hzygte0  myapp_nodejs  replicated  2/2       docker.io/kalise/nodejs-web-app:latest
+tvom1dh8dr3h  myapp_vote    replicated  1/1       docker.io/kalise/flask-vote-app:latest
+xfme1hzygte0  myapp_mysql   replicated  1/1       mysql/mysql-server:latest
 
-[root@swarm00 ~]# docker service inspect myapp_proxy --pretty
-[root@swarm00 ~]# docker service inspect myapp_nodejs --pretty
+[root@swarm00 ~]# docker service inspect myapp_vote --pretty
+[root@swarm00 ~]# docker service inspect myapp_mysql --pretty
 ```
 
 ```yaml
-ID:             sbuw8n2uw0oe9sn1yofkkyry6
-Name:           myapp_proxy
+ID:             fx6p9kx87bui2r9tw1zani806
+Name:           sample_vote_app_vote
 Labels:
- com.docker.stack.namespace=myapp
-Service Mode:   Replicated
- Replicas:      1
-Placement:Contraints:   [node.role == worker]
-UpdateConfig:
- Parallelism:   1
- Delay:         30s
- On failure:    pause
- Max failure ratio: 0
-ContainerSpec:
- Image:         docker.io/kalise/http-proxy-server:latest
- Env:           REMOTE_PORT=8080 REMOTE_SERVER=nodejs
-Resources:
-Networks: 8dhnsemwghfc7olxqlnvypvou
-Endpoint Mode:  vip
-Ports:
- PublishedPort 80
-  Protocol = tcp
-  TargetPort = 80
-```
-
-```yaml
-ID:             lqagfq2q2051d45mqxoj3or3e
-Name:           myapp_nodejs
-Labels:
- com.docker.stack.namespace=myapp
+ com.docker.stack.namespace=sample_vote_app
 Service Mode:   Replicated
  Replicas:      2
-UpdateStatus:
- State:         completed
- Started:       3 minutes
- Completed:     2 minutes
- Message:       update completed
 Placement:Contraints:   [node.role == worker]
 UpdateConfig:
  Parallelism:   1
@@ -169,15 +143,40 @@ UpdateConfig:
  On failure:    pause
  Max failure ratio: 0
 ContainerSpec:
- Image:         docker.io/kalise/nodejs-web-app:2.4
- Env:           MESSAGE=Hello Docker Swarm
+ Image:         docker.io/kalise/flask-vote-app:latest
+ Env:           DB_HOST=mysql DB_NAME=votedb DB_PASS=password DB_PORT=3306 DB_TYPE=mysql DB_USER=user
 Mounts:
-  Target = /var/log
-   Source = myapp_log-volume
+  Target = /app/log
+   Source = sample_vote_app_log-volume
    ReadOnly = false
    Type = volume
 Resources:
-Networks: 8dhnsemwghfc7olxqlnvypvou
+Networks: n0axrw5wxkmk68xjclqdmqr5m
+Endpoint Mode:  vip
+Ports:
+ PublishedPort 20000
+  Protocol = tcp
+  TargetPort = 5000
+```
+
+```yaml
+ID:             u2w47czycszmjnwrmviqr1oxb
+Name:           sample_vote_app_mysql
+Labels:
+ com.docker.stack.namespace=sample_vote_app
+Service Mode:   Replicated
+ Replicas:      1
+Placement:Contraints:   [node.role == worker]
+ContainerSpec:
+ Image:         mysql/mysql-server:latest
+ Env:           MYSQL_DATABASE=votedb MYSQL_PASSWORD=password MYSQL_ROOT_PASSWORD=password MYSQL_USER=user
+Mounts:
+  Target = /var/lib/mysql
+   Source = sample_vote_app_data
+   ReadOnly = false
+   Type = volume
+Resources:
+Networks: n0axrw5wxkmk68xjclqdmqr5m
 Endpoint Mode:  vip
 ```
 
@@ -194,24 +193,13 @@ Placement constraints force the swarm scheduling criteria. Our services above ar
 ### Updates Config
 Updates configuration define how the service should be updated. This is useful for the so called "**rolling update**" of the service. During the lifetime of an application, some services need to be update, for example because the image changed. To update a service without an outage, swarm updates one or more container at a time, rather than taking down the entire service.
 
-For example, this updates the nodejs service with a different image
+For example, this updates the vote service with a different image
 ```
 [root@swarm00 ~]# docker service update \
-   --image docker.io/kalise/nodejs-web-app:2.4 myapp_nodejs
+   --image docker.io/kalise/flask-vote-app:latest:2.4 myapp_vote
 ```
 
-We can see how this is happening by listing the running containers
-```
-[root@swarm00 ~]# docker service ps myapp_nodejs
-
-ID            NAME                IMAGE                                   NODE     DESIRED STATE  CURRENT STATE            
-4t335qd7qdon  myapp_nodejs.1      docker.io/kalise/nodejs-web-app:2.4     swarm02  Running        Running 18 seconds ago
-z4b2pju5b1zy   \_ myapp_nodejs.1  docker.io/kalise/nodejs-web-app:latest  swarm02  Shutdown       Shutdown 19 seconds ago
-bk1uezf88mzs  myapp_nodejs.2      docker.io/kalise/nodejs-web-app:2.4     swarm01  Running        Running 51 seconds ago
-30nyy6yjj1r8   \_ myapp_nodejs.2  docker.io/kalise/nodejs-web-app:latest  swarm01  Shutdown       Shutdown 53 seconds ago
-```
-
-The swarm stopped the old containers running latest image and replaced with the specified image. The update is made one container at time. The following options configure the update strategy:
+The swarm stops the old containers running latest image and replaced with the specified image. The update is made one container at time. The following options configure the update strategy:
 
   * Parallelism:  the number of containers to update at time (1 in our case)
   * Delay: the time to wait between updating a group of containers (30 secs in our case)
@@ -318,7 +306,3 @@ To create an external volume outside the stack definition
     --label tenant=operations \
 myvolume
 ```
-
-
-
-

@@ -90,7 +90,7 @@ Create the private key ``server-key.pem`` file for the docker engine server
 
     openssl genrsa -out server-key.pem 4096
 
-This key will be used by our server to authenticate against the client. Once we have the private key ``server-key.pem``, we can proceed to create a Certificate Signing Request (**CSR**). This is a formal request asking the Certification Authority to sign the server certificate. The request contains the private key ``server-key.pem`` of the requesting entity and some information about the entity.
+Once we have the private key ``server-key.pem``, we can proceed to create a Certificate Signing Request (**CSR**). This is a formal request asking the Certification Authority to sign the server certificate. The request needs the private key ``server-key.pem`` of the requesting entity and some information about the entity.
 
 Create the request
 
@@ -99,14 +99,14 @@ Create the request
 
 Make sure that Common Name (**CN**) matches the hostname of the docker engine.
 
-Sign the certificate
+Once we created the certificate signing request, we can issue the request against the Certification Authority
 
     openssl x509 -req -days 3650 -sha256 -in server.csr \
                  -CA ca.pem \
                  -CAkey ca-key.pem \
                  -CAcreateserial -out server-cert.pem
 
-This will produce the ``server-cert.pem`` certificate file containing the public key to authenticate against the server running the docker engine. Together with the ``server-key.pem`` file, this makes up a server's keys pair.
+This will produce the ``server-cert.pem`` certificate file containing the public key. Together with the ``server-key.pem`` file, this makes up a server's keys pair.
 
 Move the server's keys pair as well as the ``ca.pem`` file to a given location on server where the docker engine is running
 
@@ -140,7 +140,7 @@ Sign the certificate
                  -CAcreateserial -out server-cert.pem \
                  -extfile openssl.cnf
 
-When a certificate contains alternative names, the Common Name is ignored. Newer certificates produced by CA may not even include any Common Names. For this reason, include all desired hostnames on the alternative names configuration file.
+When a certificate contains alternative names, the Common Name set in the request (.csr) is ignored. For this reason, include all desired hostnames on the alternative names configuration file.
 
 To inspect the server certificate
 ```

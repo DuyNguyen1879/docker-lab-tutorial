@@ -205,6 +205,8 @@ After generating the server and client certificates, we can safely remove the tw
     rm -rf *.csr
     rm -rf *.cnf
 
+We'll keep the ``ca-key.pem`` key in case we need to sign other certificates against the same Certification Authority.
+
 ### Enable TLS verification
 On the server, stop the docker engine and edit the docker daemon ``/etc/docker/daemon.json`` configuration file as following
 ```json

@@ -36,7 +36,7 @@ The docker engine, by default, is listening for client connections on the ``/var
 ```
 
 ## Securing the engine
-By default docker engine has no authentication or authorization, relying instead on the filesystem security of its unix socket which by default is only accessible by the root user. For accessing docker engine via remote clients (both gui and cli), it is possible to secure it via TLS. To provide proof of identity, Docker supports TLS certificates both on the server and the client side. When set up correctly, it will only allow clients and servers with a certificate signed by a specific CA to talk to eachother.
+By default docker engine has no authentication or authorization, relying instead on the filesystem security of its unix socket which by default is only accessible by the root user. For accessing docker engine via remote clients (both gui and cli), it is possible to secure it via TLS. To provide proof of identity, Docker supports TLS certificates both on the server and the client side. When set up correctly, it will only allow clients and servers with a certificate signed by a specific Certification Authority to talk to each other.
 
 On any Linux machine with OpenSSL installed, create a folder where store certificates and keys
 
@@ -53,11 +53,11 @@ The docker two-way authentication requires the server to have two certificates: 
 Please, remember this is only an example: dealing with a real Certificate Authority will be slightly different.
 
 ### Create Certification Authority certificate and key
-The CA Server is not required in this tutorial since we are using a self generated Certificated Authority. Create a **CA** key file ``ca-key.pem`` with an encrypted passphrase
+The Certification Authority entity is not required in this tutorial since we are using a self generated Certification Authority. Create a **CA** key file ``ca-key.pem`` with an encrypted passphrase
 
     openssl genrsa -aes256 -out ca-key.pem 4096
 
-This is the key used to sign client and server certificates against the Certification Authority. It is NOT the private key used in the client/server communication. We'll create these keys later. To inspect the just created key, use the ``openssl rsa -in ca-key.pem -text`` command. If you are interested in to extract the public part from this key, use the command ``openssl rsa -in ca-key.pem -pubout``.
+This is the key used in the process to sign client and server certificates against the Certification Authority. It is NOT the private key used in the client/server communication. We'll create these keys later. To inspect the just created key, use the ``openssl rsa -in ca-key.pem -text`` command. If you are interested in to extract the public part from this key, use the command ``openssl rsa -in ca-key.pem -pubout``.
 
 Now create the CA certificate ``ca.pem`` file using the key above
 
@@ -90,7 +90,7 @@ Create the private key ``server-key.pem`` file for the docker engine server
 
     openssl genrsa -out server-key.pem 4096
 
-Once we have a private key, we can proceed to create a Certificate Signing Request (**CSR**). This is a formal request asking the CA to sign a certificate. The request contains the public key of the entity requesting the certificate and some information about the entity. This data will be part of the certificate.
+This key will be used by our server to authenticate against the client. Once we have the private key ``server-key.pem``, we can proceed to create a Certificate Signing Request (**CSR**). This is a formal request asking the Certification Authority to sign the server certificate. The request contains the private key ``server-key.pem`` of the requesting entity and some information about the entity.
 
 Create the request
 

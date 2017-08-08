@@ -1,4 +1,4 @@
-# Start with containers
+# Starting with containers
 Docker allows to run applications inside Linux Containers.
 
   * [Running a container](#running-a-container)

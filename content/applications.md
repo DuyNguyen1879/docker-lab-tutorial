@@ -7,6 +7,7 @@ In this section we're going to walk through the application deployment in Docker
    * [Updates Config](#updates-config)
    * [Networks](#networks)
    * [Volumes](#volumes)
+   * [Secrets](#secrets)
 
 ## Application Stacks
 A stack is a collection of services that make up an application in a specific environment. A stack file is a file in yaml format that defines one or more services and how they are linked each other. Stacks are a convenient way to automatically deploy multiple services that are linked to each other, without needing to define each one separately.

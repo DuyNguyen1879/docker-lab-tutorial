@@ -5,7 +5,7 @@ This is a lab tutorial to Docker and Linux containers. It covers theoretical bac
 ## Content
 1. [Linux Containers](./content/introduction.md)
 
-2. [Start with Containers](./content/quickstart.md)
+2. [Starting with Containers](./content/quickstart.md)
     * [Running an application](./content/quickstart.md#running-an-application)
     * [Working inside a container](./content/quickstart.md#working-inside-a-container)
     * [Inspecting a container](./content/quickstart.md#inspecting-a-container)
@@ -47,6 +47,7 @@ This is a lab tutorial to Docker and Linux containers. It covers theoretical bac
       * [Updates Config](./content/applications.md#updates-config)
       * [Networks](./content/applications.md#networks)
       * [Volumes](./content/applications.md#volumes)
+      * [Secrets](./content/applications.md#secrets)
 
 8. [Administration](./content/administration.md)
 

@@ -306,3 +306,23 @@ To create an external volume outside the stack definition
     --label tenant=operations \
 myvolume
 ```
+
+## Secrets
+In Swarm, the control plane is authenticated through mutual TLS and encrypted with AES-GCM while the data plane is not encrypted by default, for performance reasons. Docker uses the secrets to selectively and securely bring security to services. In terms of Docker swarm services, a secret is a blob of data, such as a password, private key, certificate, or another piece of data that should not be transmitted over a network or stored unencrypted in the Dockerfile or source code.
+
+A swarm cluster uses secrets to centrally manage sensitive data and securely transmit it to only those containers that need access. Secrets are encrypted during transit and at rest in the swarm. A given secret is only accessible to those services which have been granted explicit access to it, and only while those service tasks are running.
+
+   * Usernames and passwords
+   * TLS certificates and keys
+   * SSH keys
+   * Database names
+   * Generic data up to 500 KB in size
+
+**Note**: *Docker secrets are only available to swarm services, not to standalone containers.*
+
+
+
+
+
+
+

@@ -360,8 +360,8 @@ Locate the container and login into
 
 docker service ps nginx
 
-ID                  NAME                IMAGE               NODE                DESIRED STATE
-qa5z7m19gy2a        nginx.1             nginx:latest        clastix00           Running           
+    ID             NAME       IMAGE          NODE         DESIRED STATE
+    qa5z7m19gy2a   nginx.1    nginx:latest   clastix00    Running           
 
     docker exec -it nginx.1 sh
     # cat /run/secrets/password

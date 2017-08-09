@@ -326,30 +326,108 @@ Create a secret password specifying a name for the secret and the secret itself
     echo Th1s1sA5tr0nGpa55w0rD! | docker secret create password -
     blfkkqkwxbozxi6p9o49zi2i6
 
+If the secret is in a file, you can simply pass the path to the file
+
+    echo Th1s1sA5tr0nGpa55w0rD! > password.txt
+    docker secret create password password.txt
+
 List the secrets
 
     docker secret list
     ID                          NAME                CREATED             UPDATED
     blfkkqkwxbozxi6p9o49zi2i6   password            9 seconds ago       9 seconds ago
 
-and inspect one with ``docker secret inspect password`` command
-    ```json
-    [
-        {
-            "ID": "blfkkqkwxbozxi6p9o49zi2i6",
-            "Version": {
-                "Index": 237
-            },
-            "CreatedAt": "2017-08-09T07:28:10.556973156Z",
-            "UpdatedAt": "2017-08-09T07:28:10.556973156Z",
-            "Spec": {
-                "Name": "password",
-                "Labels": {}
-            }
-        }
-    ]
-    ```
+and inspect one 
 
+docker secret inspect password --pretty
+
+    ID:                     blfkkqkwxbozxi6p9o49zi2i6
+    Name:                   password
+    Created at:             2017-08-09 07:28:10.556973156 +0000 utc
+    Updated at:             2017-08-09 07:28:10.556973156 +0000 utc
+
+Secrets are ecrypted and distributed to all manager nodes in the swarm as key/value, ensuring the high availability guarantees for secrets as for the rest of the swarm management data. 
+
+Secrets must be attached explicitly to services
+
+    docker service create --name nginx \
+                          --secret password \
+                          --publish 80:80 \
+                            nginx:latest
+
+In resulting containers, the secret is attached in the ``/run/secrets`` that is an in-memory file system.
+Locate the container and login into
+
+docker service ps nginx
+
+ID                  NAME                IMAGE               NODE                DESIRED STATE
+qa5z7m19gy2a        nginx.1             nginx:latest        clastix00           Running           
+
+    docker exec -it nginx.1 sh
+    # cat /run/secrets/password
+    Th1s1sA5tr0nGpa55w0rD!
+
+Secrets can be mapped into containers to a different names
+
+    docker service create --name nginx \
+                          --secret source=password,target=/etc/nginx/password.txt \
+                          --publish 80:80 \
+                            nginx:latest
+
+    docker exec -it nginx.1 sh
+    # cat /etc/nginx/password.txt
+    Th1s1sA5tr0nGpa55w0rD!
+
+Secrets can be removed and added to running services. However, adding and removing is not on the fly. The service is redeployed.
+
+    docker service update nginx --secret-rm password
+    docker service update nginx --secret-add password2
+
+or in a single command
+
+    docker service update nginx --secret-rm password --secret-add password2
+
+As a more complete example, we are going to use secrets for sharing TLS key and certificate with containers without put them in dockerfile. The ``kalise/lighttps`` docker image is a **Lighttpd** web server with TLS enabled support.
+
+The image requires a PEM file ``/etc/lighttpd/ssl/server.pem`` containing both server key and certificate to run HTTPS. Code is available [here](https://github.com/kalise/lighttps).
+
+Suppose we already have the private key ``host.key`` and the certificate ``host.crt``. As per Lighttpd requirements, combine them in a single PEM file
+
+    cat host.key host.crt > server.pem
+
+Also make sure to have the Certification Authority certificate ``ca.pem`` for testing the service.
+
+Create the secret
+
+    docker secret create pemfile server.pem
+    rgb28ueelrtlp6whkb2c9ezn4
+  
+Create the Lighttpd service with TLS enabled by attaching the secrets on the target location
+
+    docker service create  \
+           --name lighttps  \
+           --secret source=pemfile,target=/etc/lighttpd/ssl/server.pem \
+           --publish 80:80 \
+           --publish 443:443 \
+           kalise/lighttps:latest
+
+Check the service is running
+
+    docker service list
+    ID            NAME      MODE        REPLICAS  IMAGE                    PORTS
+    ksjygrpk012s  lighttps  replicated  1/1       kalise/lighttps:latest  *:80->80/tcp,*:443->443/tcp
+
+Check HTTPS is working
+
+    curl --cacert ca.pem https://<hostname>:443
+
+    <html>
+      <header>
+      </header>
+      <body>
+           <h1>It Works!</h1>
+      </body>
+    </html>
 
 
 

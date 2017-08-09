@@ -309,7 +309,7 @@ myvolume
 ```
 
 ## Secrets
-In Swarm, the control plane is authenticated through mutual TLS and encrypted with AES-GCM while the data plane is not encrypted by default, for performance reasons. Docker uses the secrets to selectively and securely bring security to services. In terms of Docker swarm services, a secret is a blob of data, such as a password, private key, certificate, or another piece of data that should not be transmitted over a network or stored unencrypted in the Dockerfile or source code.
+In Swarm, the control plane is authenticated through mutual TLS and encrypted with AES-GCM while the data plane is not encrypted by default, for performance reasons. Swarm uses the secrets to selectively and securely bring security to services. In terms of swarm services, a secret is a blob of data, such as a password, private key, certificate, or another piece of data that should not be transmitted over a network or stored unencrypted in the Dockerfile or source code.
 
 A swarm cluster uses secrets to centrally manage sensitive data and securely transmit it to only those containers that need access. Secrets are encrypted during transit and at rest in the swarm. A given secret is only accessible to those services which have been granted explicit access to it, and only while those service tasks are running.
 
@@ -319,8 +319,36 @@ A swarm cluster uses secrets to centrally manage sensitive data and securely tra
    * Database names
    * Generic data up to 500 KB in size
 
-**Note**: *Docker secrets are only available to swarm services, not to standalone containers.*
+**Note**: *secrets are only available to swarm services, not to standalone containers.*
 
+Create a secret password specifying a name for the secret and the secret itself
+
+    echo Th1s1sA5tr0nGpa55w0rD! | docker secret create password -
+    blfkkqkwxbozxi6p9o49zi2i6
+
+List the secrets
+
+    docker secret list
+    ID                          NAME                CREATED             UPDATED
+    blfkkqkwxbozxi6p9o49zi2i6   password            9 seconds ago       9 seconds ago
+
+and inspect one with ``docker secret inspect password`` command
+    ```json
+    [
+        {
+            "ID": "blfkkqkwxbozxi6p9o49zi2i6",
+            "Version": {
+                "Index": 237
+            },
+            "CreatedAt": "2017-08-09T07:28:10.556973156Z",
+            "UpdatedAt": "2017-08-09T07:28:10.556973156Z",
+            "Spec": {
+                "Name": "password",
+                "Labels": {}
+            }
+        }
+    ]
+    ```
 
 
 

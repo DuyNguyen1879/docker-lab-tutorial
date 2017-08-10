@@ -117,7 +117,7 @@ As sesult, we have following files
 They are the key and the certificate of our self signed Certification Authority.
 
 ### Create certificate and key for the server
-Create the configuration file ``sserver-csr.json`` for server certificate signing request
+Create the configuration file ``server-csr.json`` for server certificate signing request
 
 ```json
 {

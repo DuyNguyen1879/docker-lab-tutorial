@@ -41,15 +41,20 @@ This is a lab tutorial to Docker and Linux containers. It covers theoretical bac
      * [High Availability](./content/swarm-mode.md#high-availability)
 
 7. [Applications Deployment](./content/applications.md)
-      * [Application Stacks](./content/applications.md#applications-stacks)
-      * [Service Mode](./content/applications.md#service-mode)
-      * [Placement Constraints](./content/applications.md#placement-constraints)
-      * [Updates Config](./content/applications.md#updates-config)
-      * [Networks](./content/applications.md#networks)
-      * [Volumes](./content/applications.md#volumes)
-      * [Secrets](./content/applications.md#secrets)
+     * [Application Stacks](./content/applications.md#applications-stacks)
+     * [Service Mode](./content/applications.md#service-mode)
+     * [Placement Constraints](./content/applications.md#placement-constraints)
+     * [Updates Config](./content/applications.md#updates-config)
+     * [Networks](./content/applications.md#networks)
+     * [Volumes](./content/applications.md#volumes)
+     * [Secrets](./content/applications.md#secrets)
 
-8. [Administration](./content/administration.md)
+8. [Security](./content/security.md)
+     * [Securing the engine](./content/security.md#securing-the-engine)
+     * [Securing the cluster](./content/security.md#ecuring-the-cluster)
+     * [User Namespaces](./content/security.md#user-namespaces)
+
+9. [Administration](./content/administration.md)
 
 ## Disclaimer
 This tutorial is for personal use only. This is just a lab guide, not a documentation for Docker, please go to their online

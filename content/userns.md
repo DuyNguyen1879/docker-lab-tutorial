@@ -1,7 +1,7 @@
 # User Namespaces
 In Linux, namespaces are essential to the functioning of containers as we know them. For example, the PID namespace is what keeps processes in one container from seeing or interacting with processes in another container or, in the host system. A process might have the apparent PID 1 inside a container
 
-    [root@centos ~]# docker run -it --rm --name ubuntu ubuntu:latest /bin/bash
+    [root@centos ~]# docker run -it --rm ubuntu:latest /bin/bash
     root@f1ad1406edd4:/# ps -ef
     UID        PID  PPID  C STIME TTY          TIME CMD
     root         1     0  0 12:47 ?        00:00:00 /bin/bash
@@ -12,7 +12,7 @@ the process will have an ordinary PID on the host system.
     [root@centos ~]# ps -ef | grep bash
     UID        PID  PPID  C STIME TTY          TIME CMD
     ...
-    root     23148 12357  0 14:47 pts/0    00:00:00 /usr/bin/docker-current run -it --rm --name ubuntu ubuntu /bin/bash
+    root     23148 12357  0 14:47 pts/0    00:00:00 /usr/bin/docker-current run -it --rm ubuntu /bin/bash
     root     23316 23305  0 14:47 pts/3    00:00:00 /bin/bash
     root     23354 12429  0 14:53 pts/2    00:00:00 grep --color=auto bash
 

@@ -207,7 +207,7 @@ The swarm stops the old containers running latest image and replaced with the sp
   * On failure:  what to do if an update fails. One of continue or pause (pause, default in our case)
   * Max failure ratio: failure rate to tolerate during an update ( zero in our case)
 
-## Networks
+### Networks
 The top level networks key in the stack file, lets you specify how networks have to be created.
 ```yaml
 ...
@@ -264,7 +264,7 @@ isolatednetwork
 
 This is useful, for example, as backend network for services.
 
-## Volumes
+### Volumes
 The top level volumes key lets you to define volumes for services. Volumes are directories or storage areas outside of the container’s filesystem where containers store reusable and shareable data that can persist even when containers are terminated. 
 ```yaml
 ...
@@ -387,6 +387,7 @@ or in a single command
 
     docker service update nginx --secret-rm password --secret-add password2
 
+### Secrets for sharing keys
 As a more complete example, we are going to use secrets for sharing TLS key and certificate with containers without put them in dockerfile. The ``kalise/lighttps`` docker image is a **Lighttpd** web server with TLS enabled support.
 
 The image requires a PEM file ``/etc/lighttpd/ssl/server.pem`` containing both server key and certificate to run HTTPS. Code is available [here](https://github.com/kalise/lighttps).
@@ -429,7 +430,53 @@ Check HTTPS is working
       </body>
     </html>
 
+### Secrets for sharing password
+As example of passing passwords with secrets, consider the vote app we used before. The yaml stack definition file can be enhanced by adding two secrets
 
+    secrets:
+       db_password:
+         file: db_password.txt
+       db_root_password:
+         file: db_root_password.txt
 
+The first secret will used for the MySQL application db password as requested by the MySQL and the Vote containers. The second secret will be used by the MySQL container only.
 
+```yaml
+...
+  vote:
+    image: docker.io/kalise/flask-vote-app:latest
+    environment:
+      DB_TYPE: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: votedb
+      DB_USER: user
+      DB_PASS: /run/secrets/db_password
+...
+  mysql:
+    image: mysql/mysql-server:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: /run/secrets/db_root_password
+      #MYSQL_RANDOM_ROOT_PASSWORD: yes
+      MYSQL_DATABASE: votedb
+      MYSQL_USER: user
+      MYSQL_PASSWORD: /run/secrets/db_password
+...
+```
+
+As we see, there is no needs to code any password in the stack definition. To pass passwords to the containers it is only required to create the passwords as text files and start the application
+
+    echo Th1s1sA5tr0nGpa55w0rD! > db_password.txt
+    echo Th1s1sA5tr0nG%ooTpa55w0rD! > db_root_password.txt
+
+    docker stack deploy -c vote-stack-secrets.yaml myapp
+
+Once started, the swarm will encript these password and distribute securely on all the manager nodes. The running containers will access these passwords securely with the strong encryption provided by the swarm.
+
+Containers will use the secrets from their secret location ``/run/secrets`` to polulate the env variables. The user can now remove the text files containing the password
+
+    rm -rf db_password.txt
+    rm -rf db_root_password.txt
+
+Note we have to update to ``version: "3.1"`` the stack file to support secrets. The complete stack file can be found [here](../examples/wp-stack-secrets.yaml).
 

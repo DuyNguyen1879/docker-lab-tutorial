@@ -358,7 +358,7 @@ Secrets must be attached explicitly to services
 In resulting containers, the secret is attached in the ``/run/secrets`` that is an in-memory file system.
 Locate the container and login into
 
-docker service ps nginx
+    docker service ps nginx
 
     ID             NAME       IMAGE          NODE         DESIRED STATE
     qa5z7m19gy2a   nginx.1    nginx:latest   clastix00    Running           

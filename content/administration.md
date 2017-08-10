@@ -36,9 +36,16 @@ The docker engine, by default, is listening for client connections on the ``/var
 ```
 
 ## Securing the engine
-By default docker engine has no authentication or authorization, relying instead on the filesystem security of its unix socket which by default is only accessible by the root user. For accessing docker engine via remote clients (both gui and cli), it is possible to secure it via TLS. To provide proof of identity, Docker supports TLS certificates both on the server and the client side. When set up correctly, it will only allow clients and servers with a certificate signed by a specific Certification Authority to talk to each other.
+By default docker engine has no authentication or authorization, relying instead on the filesystem security of its unix socket which by default is only accessible by the root user. For accessing docker engine via remote clients (both gui and cli), it is possible to secure it via TLS. To provide proof of identity, Docker supports TLS certificates both on the server and the client side. When set up correctly, it will only allow clients and servers with a certificate signed by a specific **Certification Authority** to talk to each other.
 
-On any Linux machine with OpenSSL installed, create a folder where store certificates and keys
+The docker two-way authentication requires the server to have two certificates: the **Certification Authority** certificate and the server certificate and a private key. It also requires the client to have two certificates: the **Certification Authority** certificate and the client certificate and a private key:
+
+![](../img/detls.png?raw=true)
+
+Please, remember this is only an example: dealing with a real **Certificate Authority** will be slightly different.
+
+### Install the required tools
+On any Linux machine install OpenSSL, create a folder where store certificates and keys
 
     openssl version
     OpenSSL 1.0.1e-fips 11 Feb 2013
@@ -46,166 +53,156 @@ On any Linux machine with OpenSSL installed, create a folder where store certifi
     mkdir -p ./docker-pki
     cd ./docker-pki
     
-The docker two-way authentication requires the server to have two certificates: the Certification Authority certificate and the server certificate and a private key. It also requires the client to have two certificates: the Certification Authority certificate and the client certificate and a private key:
+To speedup things, in this lab, we'll use the **CloudFlare** TLS toolkit for helping us in TLS certificates creation. Details on this tool and how to use it are [here](https://github.com/cloudflare/cfssl).
 
-![](../img/detls.png?raw=true)
+Install the tool
 
-Please, remember this is only an example: dealing with a real Certificate Authority will be slightly different.
+    wget https://pkg.cfssl.org/R1.2/cfssl_linux-amd64
+    wget https://pkg.cfssl.org/R1.2/cfssljson_linux-amd64
+
+    chmod +x cfssl_linux-amd64
+    chmod +x cfssljson_linux-amd64
+
+    mv cfssl_linux-amd64 /usr/local/bin/cfssl
+    mv cfssljson_linux-amd64 /usr/local/bin/cfssljson
 
 ### Create Certification Authority certificate and key
-The Certification Authority entity is not required in this tutorial since we are using a self generated Certification Authority. Create a **CA** key file ``ca-key.pem`` with an encrypted passphrase
+The **Certification Authority** entity is not required in this lab since we are using a self generated **Certification Authority**. Create a **Certification Authority** configuration file ``ca-config.json`` as following
 
-    openssl genrsa -aes256 -out ca-key.pem 4096
+```json
+{
+  "signing": {
+    "default": {
+      "expiry": "8760h"
+    },
+    "profiles": {
+      "custom": {
+        "usages": ["signing", "key encipherment", "server auth", "client auth"],
+        "expiry": "8760h"
+      }
+    }
+  }
+}
+```
 
-This is the key used in the process to sign client and server certificates against the Certification Authority. It is NOT the private key used in the client/server communication. We'll create these keys later. To inspect the just created key, use the ``openssl rsa -in ca-key.pem -text`` command. If you are interested in to extract the public part from this key, use the command ``openssl rsa -in ca-key.pem -pubout``.
+Create the configuration file ``ca-csr.json`` for the **Certification Authority** signing request
 
-Now create the CA certificate ``ca.pem`` file using the key above
+```json
+{
+  "CN": "NoverIT",
+  "key": {
+    "algo": "rsa",
+    "size": 4096
+  },
+  "names": [
+    {
+      "C": "IT",
+      "ST": "Italy",
+      "L": "Milan",
+      "O": "My Own Certification Authority"
+    }
+  ]
+}
+```
 
-    openssl req -new -x509 -days 3650 -key ca-key.pem -sha256 -out ca.pem
+Generate a CA certificate and private key:
 
-This is an interactive process, asking for information about the Certificate Authority. Since we're creating our own Certification Authority, no too much constraints here.
+    cfssl gencert -initca ca-csr.json | cfssljson -bare ca
 
-Inspect the certificate
+As sesult, we have following files
 
-    openssl x509 -in ca.pem -noout -text
-    
-    Certificate:
-        Data:
-            Version: 3 (0x2)
-            Serial Number: 15209141164087594974 (0xd311b94ea8364fde)
-        Signature Algorithm: sha256WithRSAEncryption
-            Issuer: C=IT, ST=Italy, L=Milan, O=NoverIT, CN=kalise
-            Validity
-                Not Before: Jul 13 18:06:54 2017 GMT
-                Not After : Jul 11 18:06:54 2027 GMT
-            Subject: C=IT, ST=Italy, L=Milan, O=NoverIT, CN=kalise
-            Subject Public Key Info:
-                Public Key Algorithm: rsaEncryption
-                    Public-Key: (4096 bit)
+    ca-key.pem
+    ca.pem
 
-As convenience, we set the validity of this certificate as for 10 years.
+They are the key and the certificate of our self signed Certification Authority.
 
 ### Create certificate and key for the server
-Create the private key ``server-key.pem`` file for the docker engine server
+Create the configuration file ``sserver-csr.json`` for server certificate signing request
 
-    openssl genrsa -out server-key.pem 4096
+```json
+{
+  "CN": "docker-engine",
+  "hosts": [
+    "swarm00",
+    "swarm00",
+    "swarm00",
+    "swarm00",
+    "swarm00",
+    "10.10.10.60",
+    "10.10.10.61",
+    "10.10.10.62",
+    "10.10.10.63",
+    "10.10.10.64",
+    "127.0.0.1",
+    "localhost"
+  ],
+  "key": {
+    "algo": "rsa",
+    "size": 4096
+  }
+}
+```
 
-Once we have the private key ``server-key.pem``, we can proceed to create a Certificate Signing Request (**CSR**). This is a formal request asking the Certification Authority to sign the server certificate. The request needs the private key ``server-key.pem`` of the requesting entity and some information about the entity.
+If you have a cluster of docker engines, e.g. a Swarm cluster, make sure to add all the docker engine addresses and hostnames. This avoids us to create a separate pair of key/certificate for each engine in the cluster.
 
-Create the request
+Create the key pair
 
-    HOST=docker-engine
-    openssl req -subj "/CN=$HOST" -sha256 -new -key server-key.pem -out server.csr
+    cfssl gencert \
+       -ca=ca.pem \
+       -ca-key=ca-key.pem \
+       -config=ca-config.json \
+       -profile=custom \
+       server-csr.json | cfssljson -bare server
 
-Make sure that Common Name (**CN**) matches the hostname of the docker engine.
-
-Once we created the certificate signing request, we can issue the request against the Certification Authority
-
-    openssl x509 -req -days 3650 -sha256 -in server.csr \
-                 -CA ca.pem \
-                 -CAkey ca-key.pem \
-                 -CAcreateserial -out server-cert.pem
-
-This will produce the ``server-cert.pem`` certificate file containing the public key. Together with the ``server-key.pem`` file, this makes up a server's keys pair.
-
-Move the server's keys pair as well as the ``ca.pem`` file to a given location on server where the docker engine is running
+This will produce the ``server.pem`` certificate file containing the public key and the ``server-key.pem`` file, containing the private key. Move the server's keys pair as well as the ``ca.pem`` file to a given location on server where the docker engine is running
 
     mkdir -p /etc/docker/ssl/
-    mv ca.pem /etc/docker/ssl/ca.pem
-    mv server-cert.pem /etc/docker/ssl/server-cert.pem
+    
+    cp ca.pem /etc/docker/ssl/ca.pem
+    mv server.pem /etc/docker/ssl/server-cert.pem
     mv server-key.pem /etc/docker/ssl/server-key.pem
 
 We'll instruct the docker engine to use these files. To improve secutity, make sure the private key file will be safe, e.g. changing the file permissions.
 
-#### Creating Certificates Valid for Multiple Hostnames
-By default, certificates have only one Common Name (**CN**) and are valid for only one hostname. Because of this, having a cluster of docker engines, we are forced to use a separate certificate for each node. In this situation, using a single multidomain certificate makes much more sense. For this example, create an estention file ``openssl.cnf`` with the following content
-
-    subjectAltName = @alt_names
-
-    [alt_names]
-    DNS.0 = swarm00
-    IP.0 = 10.10.10.60
-    DNS.1 = swarm01
-    IP.1 = 10.10.10.61
-    DNS.2 = swarm02
-    IP.2 = 10.10.10.62
-    DNS = localhost
-    IP = 127.0.0.1
-
-Sign the certificate
-
-    openssl x509 -req -days 3650 -sha256 -in server.csr \
-                 -CA ca.pem \
-                 -CAkey ca-key.pem \
-                 -CAcreateserial -out server-cert.pem \
-                 -extfile openssl.cnf
-
-When a certificate contains alternative names, the Common Name set in the request (.csr) is ignored. For this reason, include all desired hostnames on the alternative names configuration file.
-
-To inspect the server certificate
-```
-openssl x509 -in /etc/docker/ssl/server-cert.pem -noout -text
-
-Certificate:
-    Data:
-        Version: 3 (0x2)
-        Serial Number: 15560757987512340384 (0xd7f2eaf1f97ecfa0)
-    Signature Algorithm: sha256WithRSAEncryption
-        Issuer: C=IT, ST=Italy, L=Milan, O=NoverIT, CN=kalise
-        Validity
-            Not Before: Jul 13 20:41:44 2017 GMT
-            Not After : Jul 11 20:41:44 2027 GMT
-        Subject: CN=docker-engine
-        Subject Public Key Info:
-            Public Key Algorithm: rsaEncryption
-                Public-Key: (4096 bit)
-                Modulus:
-                ...
-        X509v3 extensions:
-            X509v3 Subject Alternative Name:
-                DNS:swarm00, IP Address:10.10.10.60,
-                DNS:swarm01, IP Address:10.10.10.61,
-                DNS:swarm02, IP Address:10.10.10.62,
-                DNS:localhost, IP Address:127.0.0.1
-    Signature Algorithm: sha256WithRSAEncryption
-    ...
-```
-
 ### Create certificate and key for the client
-Since TLS authentication in docker is a two way authentication between client and server, we need to create a client's keys pair. Create the private key ``key.pem`` file for the docker client.
+Since TLS authentication in docker is a two way authentication between client and server, we need to create a client's keys pair. Create the ``client-csr.json`` configuration file for the docker client.
 
-    openssl genrsa -out key.pem 4096
+```json
+{
+  "CN": "docker-client",
+  "hosts": [
+    "127.0.0.1",
+    "localhost"
+  ],
+  "key": {
+    "algo": "rsa",
+    "size": 4096
+  }
+}
+```
 
-Once we have a private key, we can proceed to create a Certificate Signing Request for the client. For the client certificate, we can use an arbitrary name for the Common Name option.
+Create the key pair
 
-    openssl req -subj '/CN=client' -new -key key.pem -out client.csr
+    cfssl gencert \
+       -ca=ca.pem \
+       -ca-key=ca-key.pem \
+       -config=ca-config.json \
+       -profile=custom \
+       client-csr.json | cfssljson -bare client
 
-To make the certificate suitable for client authentication, create an extensions configuration ``client.cnf`` file and sign the certificate
-
-    echo extendedKeyUsage = clientAuth > client.cnf
-    openssl x509 -req -days 365 -sha256 -in client.csr \
-                 -CA ca.pem \
-                 -CAkey ca-key.pem \
-                 -CAcreateserial -out cert.pem \
-                 -extfile client.cnf
-
-This will produce the ``cert.pem`` certificate file containing the public key for the client. Together with the ``key.pem`` file, this makes up a client's keys pair.
-
-Move the client's keys pair as well as the ``ca.pem`` file to a given location on the client used to connect the docker engine
+Once we have the private key ``client-key.pem``, and the client certificate ``client.pem``, we can proceed to secure the docker client. Move the client's keys pair as well as the ``ca.pem`` file to a given location on the client used to connect the docker engine
 
     mkdir -p $HOME/.docker
-    mv ca.pem $HOME/.docker/ca.pem
-    mv cert.pem $HOME/.docker/cert.pem
-    mv key.pem $HOME/.docker/key.pem
+    
+    cp ca.pem $HOME/.docker/ca.pem
+    mv client.pem $HOME/.docker/cert.pem
+    mv client-key.pem $HOME/.docker/key.pem
 
 We'll instruct the docker client to use these files. To improve secutity, make sure the private key file will be safe, e.g. changing the file permissions.
 
 After generating the server and client certificates, we can safely remove the two certificate signing requests as well as the extension configuration files
 
     rm -rf *.csr
-    rm -rf *.cnf
-
-We'll keep the ``ca-key.pem`` key in case we need to sign other certificates against the same Certification Authority.
 
 ### Enable TLS verification
 On the server, stop the docker engine and edit the docker daemon ``/etc/docker/daemon.json`` configuration file as following

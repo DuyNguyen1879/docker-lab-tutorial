@@ -478,5 +478,5 @@ Containers will use the secrets from their secret location ``/run/secrets`` to p
     rm -rf db_password.txt
     rm -rf db_root_password.txt
 
-Note we have to update to ``version: "3.1"`` the stack file to support secrets. The complete stack file can be found [here](../examples/wp-stack-secrets.yaml).
+Note we have to update to ``version: "3.1"`` the stack file to support secrets. The updated stack file can be found [here](../examples/vote-stack-secrets.yaml).
 

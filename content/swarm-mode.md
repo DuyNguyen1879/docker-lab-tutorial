@@ -16,6 +16,7 @@ In this section, we are going to setup a simple three-nodes cluster based on Swa
   * [Service Failover](#service-failover)
   * [Service Networks](#service-networks)
   * [Service Discovery](#service-discovery)
+  * [Service Load Balancing](#service-load-balancing)
   * [High Availability](#high-availability)
 
 A Swarm cluster of nodes is made of manager nodes and worker nodes:
@@ -672,31 +673,6 @@ Here the layout
 
 ![](../img/swarm-layout-03.png?raw=true)
 
-You can configure an external load balancer, e.g. HAProxy or Nginx to route requests to a swarm service. For the example above, you could configure the proxy to balance requests to the nodejs service published to port 80. The swarm nodes can reside on a private network that is accessible only to the proxy server, but that is not publicly accessible.
-
-For example, you could have the following HAProxy configuration in ``/etc/haproxy/haproxy.cfg`` configuration file of the proxy server 
-```
-global
-        log /dev/log    local0
-        log /dev/log    local1 notice
-...snip...
-
-# Configure HAProxy to listen on port 80
-frontend http_front
-   bind *:80
-   stats uri /haproxy?stats
-   default_backend http_back
-
-# Configure HAProxy to route requests to swarm nodes on port 80
-backend http_back
-   balance roundrobin
-   server swarm00 10.10.10.60:80 check
-   server swarm01 10.10.10.61:80 check
-   server swarm02 10.10.10.62:80 check
-```
-
-When users access the HAProxy load balancer on port 80, it forwards requests to nodes in the swarm. The swarm routing mesh feature routes the requests to the containers through the internal IPV load balancer. If, for any reason, the swarm scheduler dispatches the container to a different node, the system admin don’t need to reconfigure the load balancer.
-
 Please, note that routing mesh is the default option. If you need your service to be exposed only on the node where it is actually running, you can force this with the ``--publish mode=host,target=<target_port>,published=<published_port>`` option during service creation. For example:
 ```
 [root@swarm00 ~]# docker service create  \
@@ -719,7 +695,7 @@ tcp6       0      0 :::80                   :::*                    LISTEN      
 [root@swarm02 ~]#
 ```
 
-In general, routing mesh is the prefereable way to expose services since the host mode does not provide high availability and load balancing of the service.
+In general, routing mesh is the prefereable way to expose services.
 
 ## Service Failover
 In this section we are going to explore how swarm handles a service failover. Single containers are not replaced if they get failed, deleted or terminated for some reason. To make things more robust, Swarm introduces the replica abstraction. A replica ensures that a service gets a specified number of running container "replicas" at any time. In other words, a replica makes sure that a service has always coontainers up and running, no matter what happens. If there are too many containers, it will kill some; if there are too few, it will start more.
@@ -1071,7 +1047,33 @@ To get the VIP of a service, inspect it
 ...
 ```
 
-## High Availability
+## Service Load Balancing
+With the routing mesh, the swarm is able to expose the service on each node of the cluster. However, load balancing is only limited to the cluster nodes. User can also configure an external application load balancer, e.g. HAProxy, to route requests from the web to a service published on port 80.
+
+For example, you could have the following configuration ``/etc/haproxy/haproxy.cfg`` for the HAProxy load balancer.
+```
+global
+        log /dev/log    local0
+        log /dev/log    local1 notice
+...snip...
+
+# Configure HAProxy to listen on port 80
+frontend http_front
+   bind *:80
+   stats uri /haproxy?stats
+   default_backend http_back
+
+# Configure HAProxy to route requests to swarm nodes on port 80
+backend http_back
+   balance roundrobin
+   server swarm00 10.10.10.60:80 check
+   server swarm01 10.10.10.61:80 check
+   server swarm02 10.10.10.62:80 check
+```
+
+When users access the HAProxy load balancer on port 80, it forwards requests to nodes in the swarm. The swarm routing mesh feature routes the requests to the containers through the internal IPV load balancer. If, for any reason, the swarm scheduler dispatches the container to a different node, the system admin don’t need to reconfigure the load balancer.
+
+## Cluster High Availability
 A Swarm cluster with only a manager node is a single point of failure of the cluster control plane. When the control plane is no more available, user's services are still working on worker nodes but the sysadmin is no more able to control the cluster. Also, if something wrong happens on worker nodes, the cluster itself is not able to control the user's services. For this reasons, it is strongly recommended to protect the control plane with multiple managers.
 
 An odd number of managers in the swarm cluster is required to support manager node failures. Having an odd number of managers ensures that during an outage, the cluster quorum remains available to process requests when an outage occurs and the cluster is partitioned into two separate sets. A Swarm cluster tolerates up to (N-1)/2 failures and requires a majority or quorum of (N/2)+1 members to agree on values proposed to the cluster.

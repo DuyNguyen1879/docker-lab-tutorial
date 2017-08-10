@@ -131,4 +131,6 @@ On the host machine
         root      3247  3218  0 18:32 pts/4    00:00:00 top
         root      3252  2572  0 18:33 pts/2    00:00:00 grep --color=auto top
 
+we see the user root in the container to be mapped on the user root.
+
 To disable the feature, stop the engine, remove the ``"userns-remap": "dummy"`` from the ``/etc/docker/daemon.json`` file and restart the engine.

@@ -2,7 +2,7 @@
 In Linux, namespaces are essential to the functioning of containers as we know them. The user namespace is a tecnique to maps the UIDs and GIDs inside a container to the regular users and group in the host system.
 
 ## Container root user
-For example, the PID namespace is what keeps processes in one container from seeing or interacting with processes in another container or, in the host system. A process might have the apparent PID 1 inside a container
+For example, the PID namespace is what keeps processes in one container from seeing or interacting with processes in another container or, in the host system. A process might have the apparent ``PID=1`` inside a container
 
     [root@centos ~]# docker run -it --rm ubuntu:latest /bin/bash
     root@f1ad1406edd4:/# ps -ef
@@ -33,7 +33,7 @@ A way to avoid this pitfail is to run processes in container as no-root user. Th
     USER kalise
     CMD ["python", "-m", "SimpleHTTPServer"]
 
-The container started from the above will run the python ``SimpleHTTPServer`` application as no-root user kalise with UID 1969 and GID 1969
+The container started from the above will run the python ``SimpleHTTPServer`` application as no-root user kalise with ``UID=1969`` and ``GID=1969``
 
 Compile the image above and start a container
 
@@ -57,7 +57,7 @@ Inside the container
     kalise      20     5  0 14:12 ?        00:00:00 ps -ef
     [kalise@270009b0d141 ~]$
 
-This could prevent the user kalise to get any priviledges into the host machine. However, for containers whose processes must run as the root user within the container, we can re-map this user to a less-privileged user on the host. The mapped user is assigned a range of UIDs which function within the namespace as normal UIDs from 0 to 65536, but have no privileges on the host itself. 
+This could prevent the user kalise to get any priviledges into the host machine. However, for containers whose processes must run as the root user within the container, we can re-map this user to a less-privileged user on the host. The mapped user is assigned a range of UIDs which function within the container as normal user but have no privileges on the host itself. 
 
 ## Configure User Namespace
 To use the user namespace, it should be configured and enabled on the Docker engine. It effects all containersOn the host machine, however it can be electively disabled per container.
@@ -114,8 +114,10 @@ We see the process ``UID=1`` in container is running as root but that process is
 The user namespaces feature, can be selectively disabled per container by starting the single container with the ``--userns=host`` option
 
         [root@centos ~]# docker run -it --rm --userns=host ubuntu:latest /bin/bash
+        
         root@99ed855c0383:/# top &
         [1] 11
+        
         root@99ed855c0383:/# ps -ef
         UID        PID  PPID  C STIME TTY          TIME CMD
         root         1     0  0 16:30 ?        00:00:00 /bin/bash

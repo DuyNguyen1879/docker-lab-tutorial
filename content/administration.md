@@ -154,13 +154,13 @@ Create the key pair
        -profile=custom \
        server-csr.json | cfssljson -bare server
 
-This will produce the ``server.pem`` certificate file containing the public key and the ``server-key.pem`` file, containing the private key. Move the server's keys pair as well as the ``ca.pem`` file to a given location on server where the docker engine is running
-
-    mkdir -p /etc/docker/ssl/
+This will produce the ``server.pem`` certificate file containing the public key and the ``server-key.pem`` file, containing the private key. Move the server's keys pair as well as the ``ca.pem`` file to a given location on server, e.g.``/etc/docker/ssl`` where the docker engine is running
     
-    cp ca.pem /etc/docker/ssl/ca.pem
-    mv server.pem /etc/docker/ssl/server-cert.pem
-    mv server-key.pem /etc/docker/ssl/server-key.pem
+    for host in swarm00 swarm01 swarm02 swarm03 swarm04; do
+      scp ca.pem ${host}:/etc/docker/ssl/ca.pem
+      scp server.pem ${host}:/etc/docker/ssl/server-cert.pem
+      scp server-key.pem ${host}:/etc/docker/ssl/server-key.pem
+    done
 
 We'll instruct the docker engine to use these files. To improve secutity, make sure the private key file will be safe, e.g. changing the file permissions.
 
@@ -190,17 +190,15 @@ Create the key pair
        -profile=custom \
        client-csr.json | cfssljson -bare client
 
-Once we have the private key ``client-key.pem``, and the client certificate ``client.pem``, we can proceed to secure the docker client. Move the client's keys pair as well as the ``ca.pem`` file to a given location on the client used to connect the docker engine
-
-    mkdir -p $HOME/.docker
+Once we have the private key ``client-key.pem``, and the client certificate ``client.pem``, we can proceed to secure the docker client. Move the client's keys pair as well as the ``ca.pem`` file to a given location, e.g. ``$HOME/.docker`` on the client used to connect the docker engine
     
     cp ca.pem $HOME/.docker/ca.pem
-    mv client.pem $HOME/.docker/cert.pem
-    mv client-key.pem $HOME/.docker/key.pem
+    cp client.pem $HOME/.docker/cert.pem
+    cp client-key.pem $HOME/.docker/key.pem
 
 We'll instruct the docker client to use these files. To improve secutity, make sure the private key file will be safe, e.g. changing the file permissions.
 
-After generating the server and client certificates, we can safely remove the two certificate signing requests as well as the extension configuration files
+After generating the server and client certificates, we can safely remove the certificate signing requests files
 
     rm -rf *.csr
 

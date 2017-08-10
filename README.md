@@ -51,7 +51,7 @@ This is a lab tutorial to Docker and Linux containers. It covers theoretical bac
 
 8. [Security](./content/security.md)
      * [Securing the engine](./content/security.md#securing-the-engine)
-     * [Securing the cluster](./content/security.md#ecuring-the-cluster)
+     * [Securing the cluster](./content/security.md#securing-the-cluster)
      * [User Namespaces](./content/security.md#user-namespaces)
 
 9. [Administration](./content/administration.md)

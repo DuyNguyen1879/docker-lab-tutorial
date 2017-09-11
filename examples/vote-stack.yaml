@@ -11,7 +11,7 @@ services:
       DB_USER: user
       DB_PASS: password
     ports:
-      - "20000:5000"
+      - "8000:5000"
     networks:
       - application_network
     volumes:
@@ -56,8 +56,6 @@ volumes:
 networks:
   application_network:
     driver: overlay
-    driver_opts:
-      com.docker.network.driver.overlay.vxlanid_list: 9000
     ipam:
      driver: default
      config:

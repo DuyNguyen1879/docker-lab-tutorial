@@ -4,7 +4,7 @@ class: title
 
 ---
 
-# Agenda
+# Content
 
 1. Linux Containers
 2. Starting with Containers
@@ -18,9 +18,11 @@ class: title
 10. Application Programming Interfaces
 
 ---
-
 # Linux Container
-
+- Docker project provides the means of packaging applications in lightweight Linux containers
+- A container is a system process hiding themself from other processes/containers on the same machine.
+- Docker uses standard Linux kernel features to do this.
+- Containers existed in Linux/Unix before anyone cared of them, Docker just made using them easier and mass adoption followed.
 ---
 
 # Starting with Containers

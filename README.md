@@ -10,16 +10,19 @@ This is a lab tutorial to Docker and Linux containers. It covers theoretical bac
     * [Working inside a container](./content/quickstart.md#working-inside-a-container)
     * [Inspecting a container](./content/quickstart.md#inspecting-a-container)
 
+
 3. [Working with Images](./content/images.md)
      * [Getting started with images](./content/images.md#getting-started-with-images)
      * [Creating an image from a container](./content/images.md#creating-an-image-from-a-container)
      * [Creating an image from a Docker file](./content/images.md#creating-an-image-from-a-docker-file)
      * [Building your own images](./content/images.md#building-your-own-images)
 
+
 4.  [Storage](./content/storage.md)
      * [Graph Drivers](./content/storage.md#graph-drivers)
      * [Persistent Volumes](./content/storage.md#persistent-volumes)
      * [Registry](./content/storage.md#registry)
+
 
 5. [Networking](./content/networks.md)
      * [Default Networks](./content/networks.md#default-networks)
@@ -28,6 +31,7 @@ This is a lab tutorial to Docker and Linux containers. It covers theoretical bac
      * [Inter Containers Communication](./content/networks.md#inter-containers-communication)
      * [Embedded DNS Service](./content/networks.md#embedded-dns-service)
      * [MAC VLAN mode](./content/networks.md#mac-vlan-mode)
+
 
 6. [Swarm Mode](./content/swarm-mode.md)
      * [Setup the Swarm](./content/swarm-mode.md#setup-the-swarm)
@@ -41,6 +45,7 @@ This is a lab tutorial to Docker and Linux containers. It covers theoretical bac
      * [Service Load Balancing](./content/swarm-mode.md#service-load-balancing)
      * [High Availability](./content/swarm-mode.md#high-availability)
 
+
 7. [Applications Deployment](./content/applications.md)
      * [Application Stacks](./content/applications.md#applications-stacks)
      * [Service Mode](./content/applications.md#service-mode)
@@ -50,10 +55,12 @@ This is a lab tutorial to Docker and Linux containers. It covers theoretical bac
      * [Volumes](./content/applications.md#volumes)
      * [Secrets](./content/applications.md#secrets)
 
+
 8. [Security](./content/security.md)
      * [Securing the engine](./content/security.md#securing-the-engine)
      * [Securing the cluster](./content/security.md#securing-the-cluster)
      * [User Namespaces](./content/security.md#user-namespaces)
+
 
 9. [Administration](./content/administration.md)
 

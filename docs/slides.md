@@ -1,3 +1,5 @@
+class: title
+
 # Docker Lab Tutorial
 
 ---

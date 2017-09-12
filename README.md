@@ -1,6 +1,6 @@
 # Docker Lab Tutorial
 
-This is a lab tutorial to Docker and Linux containers. It covers theoretical background on Docker architecture and practical usage such as installation, configuration and monitoring of a Docker cluster. The tutorial refers to a setup made of hosts running CentOS 7.
+This is a lab tutorial about Docker and Linux containers. It covers theoretical background on Docker architecture and practical usage such as installation, configuration and monitoring of a Docker cluster. The tutorial refers to a setup made of hosts running CentOS 7.
 
 ## Content
 1. [Linux Containers](./content/introduction.md)

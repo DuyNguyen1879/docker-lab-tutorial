@@ -15,7 +15,7 @@ On CentOS systems, the basic configuration file could be as following
 ```json
 {
  "debug": false,
- "storage-driver": "devicemapper",
+ "storage-driver": "devicemapper"
 }
 ```
 

@@ -19,7 +19,7 @@ This is a lab tutorial about Docker and Linux containers. It covers theoretical 
 
 
 4.  [Storage](./content/storage.md)
-     * [Graph Drivers](./content/storage.md#graph-drivers)
+     * [Layered Filesystem](./content/storage.md#layered-filesystem)
      * [Persistent Volumes](./content/storage.md#persistent-volumes)
      * [Registry](./content/storage.md#registry)
 

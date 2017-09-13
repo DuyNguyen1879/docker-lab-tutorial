@@ -1,13 +1,13 @@
 # Container Storage
 Docker separates storage requirements into three categories:
 
-   * [Graph Drivers](#graph-drivers) for container run storage
+   * [Layered Filesystem](#layered-filesystem) for container run storage
    * [Persistent Volumes](#persistent-volumes) for persistent data storage
    * [Registry](#registry) for image storage
 
 This section will explore in further detail, each of these three distinct storage tiers: graph driver storage, volume storage, and registry storage.
 
-## Graph Drivers
+## Layered Filesystem
 Storage used for reading image filesystem layers from a running container state typically require IOPS and other read/write intensive operations, which leads to performance being a key storage metric. Docker adopted a layered storage architecture for the images and containers. A layered file system is made of many separate layers allowing images to be constructed and deconstructed as needed instead of creating a large, monolithic image.
 
 Supported layered file systems are:

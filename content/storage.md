@@ -344,144 +344,97 @@ The above command instructs Docker Engine to contact the registry located at ``<
 In a typical deployment workflow, a commit to source code would trigger a build on Continous Integration system, which would then push a new image to the registry service. A notification from the registry triggers a deployment on a staging environment, or notify other systems that a new image is available.
 
 ### Deploy a local Registry Service
-To deploy a local registry service on ``myregistry.example.com:5000``, install Docker on that server and then start a Registry container based on the standard registry image from Docker Hub
+To deploy a local registry service on ``myregistry:5000``, install Docker on that server and then start a Registry container based on the registry image provided by Docker Hub
 ```
-[root@centos ~]# docker pull registry:2
-[root@centos ~]# docker run -d -p 5000:5000 --restart=always --name docker-registry registry:2
+[root@centos ~]# docker pull registry:latest
+[root@centos ~]# docker run -d -p 5000:5000 --restart=always --name docker-registry registry:latest
 ```
 
 Get an image from the public Docker Hub, tag it to the local registry service
 ```
 [root@centos ~]# docker pull docker.io/kalise/httpd
-[root@centos ~]# docker tag docker.io/kalise/httpd myregistry.example.com:5000/kalise/httpd
+[root@centos ~]# docker tag docker.io/kalise/httpd myregistry:5000/kalise/httpd
 ```
 
-The plain registry above is considered as insecure by Docker Engines. To make it accessible, each Docker Engine host should be instructed via systemd to trust the insecure registry service running on ``myregistry.example.com:5000`` host.
+The plain registry above is considered as insecure by Docker Engine. To make it accessible, each Docker Engine host should be instructed to trust the insecure registry service running on ``myregistry:5000`` host.
 
-If the systemd uses the envinronment files
+Chance the docker engine ``/etc/docker/daemon.json`` configuration file
+```json
+{
+  "storage-driver": "devicemapper",
+  "hosts": ["tcp://0.0.0.0:2375","unix:///var/run/docker.sock"],
+  "insecure-registries": ["myregistry:5000"]
+}
 ```
-[root@centos ~]# systemctl show docker | grep EnvironmentFile
-EnvironmentFile=/etc/sysconfig/docker (ignore_errors=yes)
-EnvironmentFile=/etc/sysconfig/docker-storage (ignore_errors=yes)
-EnvironmentFile=/etc/sysconfig/docker-network (ignore_errors=yes)
 
-[root@centos ~]# vi /etc/sysconfig/docker
-...
-# If you have a registry secured with https but do not have proper certs
-# distributed, you can tell docker to not look for full authorization by
-# adding the registry to the INSECURE_REGISTRY line and uncommenting it.
-# INSECURE_REGISTRY='--insecure-registry'
-INSECURE_REGISTRY='--insecure-registry myregistry.example.com:5000'
-...
-
-[root@centos ~]# systemctl restart docker
-```
+and restart the docker engine.
 
 Now the Docker Engine is trusting the local registry, so we can push images on it
 
 ```
-[root@centos ~]# docker push myregistry.example.com:5000/kalise/httpd
-[root@centos ~]# docker images
-REPOSITORY                    TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
-myregistry.example.com:5000/kalise/httpd   latest              3de6516c8225        13 days ago         246.8 MB
-docker.io/kalise/httpd        latest              3de6516c8225        13 days ago         246.8 MB
-docker.io/registry            2                   ab0e69828861        2 weeks ago         171.2 MB
+docker push myregistry:5000/kalise/httpd
 ```
 
 The image can be now pulled from the local registry
 ```
-[root@centos ~]# docker pull myregistry.example.com:5000/kalise/httpd
+docker pull myregistry:5000/kalise/httpd
 ```
 
 To secure the registry with a self-signed certificate, first create the certificate
 ```
-[root@centos ~]# mkdir /etc/certs
-[root@centos ~]# cd /etc/certs
-[root@centos ~]# openssl req \
+mkdir /etc/certs
+cd /etc/certs
+openssl req \
 -newkey rsa:4096 -nodes -sha256 -keyout domain.key \
 -x509 -days 365 -out domain.crt
 ```
 
-Then each Docker Engine host needs to be instructed to trust this certificate. 
+Make sure the Common Name parameter matches the host name ``myregistry`` given to the host registry.
+
+Now each Docker engine needs to be instructed to trust this certificate. 
 ```
-[root@centos ~]# mkdir -p /etc/docker/certs.d/myregistry.example.com:5000
-[root@centos ~]# cp /etc/certs/domain.crt /etc/docker/certs.d/myregistry.example.com:5000/ca.crt
+mkdir -p /etc/docker/certs.d/myregistry:5000
+cp /etc/certs/domain.crt /etc/docker/certs.d/myregistry:5000/ca.crt
 ```
 
-Remove the insecure registry set in the previous step
-```
-[root@centos ~]# docker rm -f docker-registry
-[root@centos ~]# vi /etc/sysconfig/docker
-...
-# If you have a registry secured with https but do not have proper certs
-# distributed, you can tell docker to not look for full authorization by
-# adding the registry to the INSECURE_REGISTRY line and uncommenting it.
-# INSECURE_REGISTRY='--insecure-registry'
-# INSECURE_REGISTRY='--insecure-registry myregistry.example.com:5000'
-...
+Remove the insecure registry set in the previous step by changing the ``/etc/docker/daemon.json`` configuration file
+```json
+{
+  "storage-driver": "devicemapper",
+  "hosts": ["tcp://0.0.0.0:2375","unix:///var/run/docker.sock"],
+}
 ```
 
-and restart the Docker Engine
-```
-[root@centos ~]# systemctl restart docker
-```
+and restart the Docker Engine.
 
 Start the registry in secure mode passing the certificate as local volume and setting the related envinronment variables to the container
 ```
-[root@centos ~]# docker run -d -p 5000:5000 --restart=always --name docker-registry \
+docker run -d -p 5000:5000 --restart=always --name docker-registry \
   -v /etc/certs:/certs \
   -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/domain.crt \
   -e REGISTRY_HTTP_TLS_KEY=/certs/domain.key \
-  registry:2
+  registry:latest
 ```
 
 Now we can push/pull images to/from the local registry
 ```
-[root@centos ~]# docker push myregistry.example.com:5000/kalise/httpd
-[root@centos ~]# docker pull myregistry.example.com:5000/kalise/httpd
+docker push myregistry:5000/kalise/httpd
+docker pull myregistry:5000/kalise/httpd
 ```
 
 ### Storage backend for registry
 By default, data in containers is ephemeral, meaning it will disappears when the container registry dies. To make images a persistent data of the registry container, use a docker volume on the host filesystem.
 ```
-[root@centos ~]# mkdir /data
-[root@centos ~]# docker run -d -p 443:5000 --restart=always --name docker-registry \
+mkdir /data
+docker run -d -p 443:5000 --restart=always --name docker-registry \
 -v /data:/var/lib/registry \
 -v /etc/certs:/certs \
 -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/domain.crt \
 -e REGISTRY_HTTP_TLS_KEY=/certs/domain.key \
-registry:2
-
-[root@centos ~]# docker pull docker.io/httpd:latest
-[root@centos ~]# docker tag docker.io/httpd myregistry.example.com/httpd
-[root@centos ~]# docker push myregistry.example.com/httpd
-[root@centos ~]# docker run -d -p 8080:80 myregistry.example.com/httpd
+registry:latest
 ```
 
 Having used local file system directory ``/data`` as backend for the registry container, images pushed on that registry will survive to registry crashes or dies. However, having used a persistent backend does not prevent data loss due to local storage fails. For production use, a safer option is using a shared storage like NFS share.
 
-### Registry Configuration Reference
-More options are available on registry configuration. The Registry configuration is based on a YAML file located at path ``/etc/docker/registry/config.yml`` of the registry container.
-```
-[root@centos ~]# docker exec -it registry bash
-root@c92c03d2d2eb:/#
-root@c92c03d2d2eb:/# cat /etc/docker/registry/config.yml
-version: 0.1
-log:
-  fields:
-    service: registry
-storage:
-    cache:
-        blobdescriptor: inmemory
-    filesystem:
-        rootdirectory: /var/lib/registry
-http:
-    addr: :5000
-    headers:
-        X-Content-Type-Options: [nosniff]
-health:
-  storagedriver:
-    enabled: true
-    interval: 10s
-    threshold: 3
-```
+### Set the default Docker registry
+

@@ -186,8 +186,8 @@ local               84894a09fe25f503cd0f2d3a30eaa00a08d72190a92e2568d395cea5a277
 Persistent volumes can be created before the container and then attached to the container
 
 ```
-[root@centos ~]# docker volume create --name pippo
-[root@centos ~]# docker volume inspect pippo
+[root@centos ~]# docker volume create --name myvolume
+[root@centos ~]# docker volume inspect myvolume
 ```    
 
 ```json
@@ -195,8 +195,8 @@ Persistent volumes can be created before the container and then attached to the 
         {
             "Driver": "local",
             "Labels": {},
-            "Mountpoint": "/var/lib/docker/volumes/pippo/_data",
-            "Name": "pippo",
+            "Mountpoint": "/var/lib/docker/volumes/myvolume/_data",
+            "Name": "myvolume",
             "Options": {},
             "Scope": "local"
         }
@@ -207,7 +207,7 @@ Persistent volumes can be created before the container and then attached to the 
 [root@centos ~]# docker run --name=nodejs \
        -p 80:8080 -d \
        -e MESSAGE="Hello" \
-       -v pippo:/var/log \
+       -v myvolume:/var/log \
     docker.io/kalise/nodejs-web-app:latest
 
 [root@centos ~]# docker inspect nodejs
@@ -218,8 +218,8 @@ Persistent volumes can be created before the container and then attached to the 
     "Mounts": [
             {
                 "Type": "volume",
-                "Name": "pippo",
-                "Source": "/var/lib/docker/volumes/pippo/_data",
+                "Name": "myvolume",
+                "Source": "/var/lib/docker/volumes/myvolume/_data",
                 "Destination": "/var/log",
                 "Driver": "local",
                 "Mode": "z",
@@ -247,80 +247,6 @@ Volume data now are placed on the ``/logs`` host directory.
 The same volume could be mounted by another container, for example a container performing some analytics on the logs produced by the nodejs application. However, multiple containers writing to a single shared volume can cause data corruption. Make sure the application is designed to write to shared data stores.
 
 **Note:** *When mounting a persistent volume on a given host directory, if the container’s parent image contains data at the specified mount point, that existing data is overwritten upon volume initialization.* 
-
-### Wordpress example 
-To demonstrate the use of persistent volumes we are going to setup a worpress application made of two containers:
-
-    * The worpress PHP application
-    * The MySQL MariaDB database
-
-Both these containers will share some volumes for shared and persisten data.
-
-The wordpress application is built via docker compose starting from the following ``docker-compose.yaml`` file
-```yaml
-version: '2'
-services:
-  mariadb:
-    image: bitnami/mariadb:latest
-    environment:
-      MARIADB_ROOT_PASSWORD: bitnami123
-      MARIADB_DATABASE: workpress
-      MARIADB_USER: bitnami
-      MARIADB_PASSWORD: bitnami123
-    volumes:
-      - mariadb_data:/bitnami/mariadb
-  wordpress:
-    image: bitnami/wordpress:latest
-    environment:
-      WORDPRESS_DATABASE_NAME: workpress
-      WORDPRESS_DATABASE_USER: bitnami
-      WORDPRESS_DATABASE_PASSWORD: bitnami123
-    depends_on:
-      - mariadb
-    ports:
-      - '80:80'
-      - '443:443'
-    volumes:
-      - wordpress_data:/bitnami/wordpress
-      - apache_data:/bitnami/apache
-      - php_data:/bitnami/php
-
-volumes:
-  mariadb_data:
-    driver: local
-  wordpress_data:
-    driver: local
-  apache_data:
-    driver: local
-  php_data:
-    driver: local
-```
-
-Create the application stack
-```
-[root@centos ~]# docker-compose up -d
-
-Creating network "root_default" with the default driver
-Creating volume "root_php_data" with local driver
-Creating volume "root_apache_data" with local driver
-Creating volume "root_wordpress_data" with local driver
-Creating volume "root_mariadb_data" with local driver
-Creating root_mariadb_1
-Creating root_wordpress_1
-```
-
-Here the volumes
-```
-[root@centos ~]# ls -l /var/lib/docker/volumes/
-...
--rw------- 1 root root 65536 Apr 11 17:01 metadata.db
-drwxr-xr-x 3 root root    18 Apr 11 17:01 root_apache_data
-drwxr-xr-x 3 root root    18 Apr 11 17:01 root_mariadb_data
-drwxr-xr-x 3 root root    18 Apr 11 17:01 root_php_data
-drwxr-xr-x 3 root root    18 Apr 11 17:01 root_wordpress_data
-```
-
-These volumes store persistent data like the MySQL database and will survive to containers.
 
 ## Registry
 A Docker registry service is a storage and content delivery system containing tagged images. Main registry service is the official Docker Hub but users can build their own registry. Users interact with a registry by using push and pull commands.

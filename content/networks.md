@@ -42,23 +42,23 @@ All the docker containers will be connected to the ``docker0`` bridge by default
 
 Docker networking leverages on Linux namespace kernel feature. Since Linux expects namespase listed under ``/var/run/netns`` directory, in order to use standard Linux net namespace tools such ``ip netns``, you should link docker namespace dir ``/var/run/docker/netns`` directory.
 ```
-# /var/run/
-# ln -s /var/run/docker/netns .
-# ls -l
+cd /var/run/
+ln -s /var/run/docker/netns .
+ls -l
 ...
 lrwxrwxrwx  1 root     root       21 Mar 23 12:55 netns -> /var/run/docker/netns
 ```
 
 Create a container and check the host is creating a new virtual Ethernet interface:
 ```
-# docker run -d -p 80:80 --name webserver kalise/httpd
-# ifconfig
+docker run -d -p 80:80 --name webserver kalise/httpd
+ifconfig
 ...
 veth80f977c: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
         inet6 fe80::4d2:f3ff:fee5:c975  prefixlen 64  scopeid 0x20<link>
         ether 06:d2:f3:e5:c9:75  txqueuelen 0  (Ethernet)
 ...
-# brctl show
+brctl show
 bridge name     bridge id               STP enabled     interfaces
 docker0         8000.024267786b35       no              veth80f977c
 ```
@@ -66,7 +66,7 @@ docker0         8000.024267786b35       no              veth80f977c
 Connect to the container just created to inspect its own network stack
 
 ```
-# docker exec -it webserver /bin/bash
+docker exec -it webserver /bin/bash
 [root@7867782e7966 /]# yum install net-tools -y
 [root@7867782e7966 /]# ifconfig
 eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
@@ -95,10 +95,13 @@ container, usually seen as the ``eth0`` interface, while the other is attached t
 
 The ``iptables`` is the native packet filtering system that has been a part of the Linux kernel. It's a L3/L4 firewall that provides rule chains for packet marking, masquerading, and dropping. The built-in Docker network drivers utilize iptables extensively to segment network traffic, provide host port mapping, and to mark traffic for load balancing decisions.
 
-Inspect the bridge network
+Inspecting the bridge network
 ```
-# docker network inspect bridge
+docker network inspect bridge
 ```
+
+we get info about it
+
 ```json
 [
     {
@@ -144,8 +147,8 @@ Bridge network is the most common option for Docker container. Some other option
 
 In the host mode, the container shares the networking namespace of the host, directly exposing it to the outside world. This means you need to use port mapping to reach services inside the container.
 ```
-# docker run -d -p 80 --net=host --name webserver httpd
-# docker exec -it webserver /bin/bash
+docker run -d -p 80 --net=host --name webserver httpd
+docker exec -it webserver /bin/bash
 /usr/local/apache2# ip addr
 1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default
     link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
@@ -166,14 +169,15 @@ In the host mode, the container shares the networking namespace of the host, dir
     inet6 fe80::42:67ff:fe78:6b35/64 scope link
        valid_lft forever preferred_lft forever
 /usr/local/apache2# exit
-#
+
 ```
 
-Inspect the host network
+Inspecting the host network
 ```
-# docker network inspect host
+docker network inspect host
 ```
 
+we get info about it
 ```json
 [
     {
@@ -202,8 +206,8 @@ Inspect the host network
 
 In the container mode, a container is forced to reuse the networking namespace of another container. This is used if you want to provide custom networking from said container, this is for example, what Kubernetes uses to provide networking for multiple containers at same time using a single IP address.
 ```
-# docker run -d -p 80:80 --name=web httpd
-# docker run -it --net=container:web --name=shell busybox
+docker run -d -p 80:80 --name=web httpd
+docker run -it --net=container:web --name=shell busybox
 / # ifconfig
 eth0      Link encap:Ethernet  HWaddr 02:42:AC:11:00:02
           inet addr:172.17.0.2  Bcast:0.0.0.0  Mask:255.255.0.0
@@ -218,7 +222,7 @@ lo        Link encap:Local Loopback
 
 The none mode does not configure networking. This is useful for containers that don’t require network access.
 ```
-# docker run --net=none -itd --name=centos-none centos
+docker run --net=none -itd --name=centos-none centos
 ```
 
 ### User defined bridge networks
@@ -231,8 +235,8 @@ Figure below shows the model of Docker multiple networking
 
 Creating a custom bridge network
 ```
-# docker network create --subnet=192.168.1.0/24 --gateway=192.168.1.1 bridge1
-# docker network ls
+docker network create --subnet=192.168.1.0/24 --gateway=192.168.1.1 bridge1
+docker network ls
 NETWORK ID          NAME                DRIVER
 34a43cf4f024        bridge              bridge
 abb8c6759678        bridge1             bridge
@@ -242,7 +246,7 @@ abb8c6759678        bridge1             bridge
 
 a new interface called ``br-<net-id>`` is added to the host network stack
 ```
-# ifconfig
+ifconfig
 br-86e7fa795e38: flags=4099<UP,BROADCAST,MULTICAST>  mtu 1500
         inet 192.168.1.1  netmask 255.255.255.0  broadcast 0.0.0.0
         ether 02:42:dc:79:45:15  txqueuelen 0  (Ethernet)
@@ -251,7 +255,7 @@ docker0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
         inet 172.17.0.1  netmask 255.255.0.0  broadcast 0.0.0.0
         ether 02:42:e1:f4:01:73  txqueuelen 0  (Ethernet)
 
-# brctl show
+brctl show
 bridge name     bridge id               STP enabled     interfaces
 br-86e7fa795e38 8000.0242e3712735       no
 docker0         8000.024267786b35       no
@@ -260,13 +264,13 @@ docker0         8000.024267786b35       no
 
 It is possible to force the name of the interface to be the same of the network label
 ```
-# docker network create \
+docker network create \
 --subnet=192.168.2.0/24 \
 --gateway=192.168.2.1 \
 --opt="com.docker.network.bridge.name=bridge2" \
 bridge2
 
-# ifconfig
+ifconfig
 br-c5df690ed81e: flags=4099<UP,BROADCAST,MULTICAST>  mtu 1500
         inet 192.168.1.1  netmask 255.255.255.0  broadcast 0.0.0.0
         ether 02:42:dc:79:45:15  txqueuelen 0  (Ethernet)
@@ -283,8 +287,10 @@ docker0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
 
 Inspect the networks just created
 ```
-# docker network inspect bridge2
+docker network inspect bridge2
 ```
+
+we see
 
 ```json
 [
@@ -318,10 +324,10 @@ Inspect the networks just created
 
 Start a container on this network
 ```
-# docker run -d -p 80:80 --net=bridge2 --name apache kalise/httpd
-# docker network inspect bridge2
+docker run -d -p 80:80 --net=bridge2 --name apache kalise/httpd
 ```
 
+By inspecting it, we see
 ```json
 [
     {
@@ -358,21 +364,10 @@ Start a container on this network
 ]
 ```
 
-```
-# docker exec -it apache bash
-[root@5194ff09e858 /]# ifconfig
-eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
-        inet 192.168.2.3  netmask 255.255.255.0  broadcast 0.0.0.0
-        ether 02:42:c0:a8:02:03  txqueuelen 0  (Ethernet)
-
-[root@5194ff09e858 /]# exit
-```
-
 A running container can be attached to a network
 ```
-[root@centos ~]# docker network connect bridge1 apache
-[root@centos ~]#
-[root@centos ~]# docker exec -it apache bash
+docker network connect bridge1 apache
+docker exec -it apache bash
 [root@5194ff09e858 /]# ifconfig
 eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
         inet 192.168.2.3  netmask 255.255.255.0  broadcast 0.0.0.0
@@ -387,11 +382,11 @@ eth1: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
 
 Finally, remove the network
 ```
-# docker network rm bridge2
+ocker network rm bridge2
 Error response from daemon: network bridge2 has active endpoints
-# docker rm -f apache
+docker rm -f apache
 apache
-# docker network rm bridge2
+docker network rm bridge2
 ```
 
 ### Using custom Docker networks
@@ -399,18 +394,34 @@ Docker networking permits to build network infrastructures for real use cases. I
 
 Create an internal network
 ```
-# docker network create --subnet=192.168.1.0/24 --gateway=192.168.1.1 internal
+docker network create --subnet=192.168.1.0/24 --gateway=192.168.1.1 internal
 ```
 
 and start a MariaDB database server on this network
 ```
-# docker run -d --name mariadb --net internal bitnami/mariadb:latest
+docker run --name mariadb -d  --net internal \
+         -e MARIADB_ROOT_PASSWORD="bitnami123" \
+         -e MARIADB_DATABASE="wordpress" \
+         -e MARIADB_USER="bitnami" \
+         -e MARIADB_PASSWORD="bitnami123" \
+         bitnami/mariadb:latest
 ```
 
-Start a WordPress application on the internal network and expose the port 80 to the host
+Start a WordPress application on the external network and expose the port 80 to the host
 ```
-# docker run -d --name wordpress -p 80:80 bitnami/wordpress:latest
+docker run --name wordpress -d -p 80:80 \
+         -e WORDPRESS_DATABASE_NAME="wordpress" \
+         -e WORDPRESS_DATABASE_USER="bitnami" \
+         -e WORDPRESS_DATABASE_PASSWORD="bitnami123" \
+         bitnami/wordpress:latest
 ```
+
+Then attach the wordpress container to the internal network in order to communicate with mariadb  
+```
+docker network connect internal wordpress
+```
+
+Now the two containers, mariadb and wordpress, will communicate through the internal network.
 
 ### Inter Containers Communication
 By default, Docker has inter-container communication enabled by the option ``enable_icc=true`` meaning that containers on a host are free to communicate without restrictions. Communication to the outside world is controlled via iptables and ip_forwarding.

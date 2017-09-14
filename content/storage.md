@@ -460,37 +460,6 @@ registry:2
 
 Having used local file system directory ``/data`` as backend for the registry container, images pushed on that registry will survive to registry crashes or dies. However, having used a persistent backend does not prevent data loss due to local storage fails. For production use, a safer option is using a shared storage like NFS share.
 
-On a remote NFS server, configure the path ``/exports/registry`` as NFS share
-```
-[root@centos ~]# mkdir -p /exports/registry
-[root@centos ~]# yum install -y nfs-utils
-[root@centos ~]# chown nfsnobody:nfsnobody /exports/registry
-[root@centos ~]# chmod 777 /exports/registry
-[root@centos ~]# vi /etc/exports
-/exports/registry *(rw,sync,all_squash)
-
-[root@centos ~]# systemctl enable rpcbind nfs-server
-[root@centos ~]# systemctl start rpcbind nfs-server nfs-lock nfs-idmap
-```
-
-Note that the volume is owned by nfsnobody and access by all remote users is squashed to be access by this user. This essentially disables user permissions for clients mounting the volume.
-
-
-On the machine hosting the Registry service
-```
-[root@centos ~]# yum install -y nfs-utils
-[root@centos ~]# mkdir /mnt/registry
-[root@centos ~]# mount <IP_NFS_SERVER>:/exports/registry /mnt/registry
-[root@centos ~]# docker run -d -p 443:5000 --restart=always --name docker-registry \
--v /mnt/registry:/var/lib/registry \
--v /etc/certs:/certs \
--e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/domain.crt \
--e REGISTRY_HTTP_TLS_KEY=/certs/domain.key \
-registry:2
-```
-
-Make sure the shared path ``<IP_NFS_SERVER>:/exports/registry`` is mounted at startup by editing the ``/etc/fstab`` file. Now the registry service is backed by a NFS for protection from container exits and local disk failures.
-
 ### Registry Configuration Reference
 More options are available on registry configuration. The Registry configuration is based on a YAML file located at path ``/etc/docker/registry/config.yml`` of the registry container.
 ```

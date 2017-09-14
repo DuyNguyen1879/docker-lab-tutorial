@@ -437,4 +437,15 @@ registry:latest
 Having used local file system directory ``/data`` as backend for the registry container, images pushed on that registry will survive to registry crashes or dies. However, having used a persistent backend does not prevent data loss due to local storage fails. For production use, a safer option is using a shared storage like NFS share.
 
 ### Set the default Docker registry
+Configure a registry mirror to change the default registry from Docker Hub to a local registry. The first time docker requests an image from local registry mirror, it pulls the image from the public Docker Hub and stores it locally. On subsequent requests, the local registry mirror is able to serve the image from its own storage.
 
+Edit the ``/etc/docker/daemon.json`` configuration file
+```json
+{
+  "storage-driver": "devicemapper",
+  "hosts": ["tcp://0.0.0.0:2375","unix:///var/run/docker.sock"],
+  "registry-mirrors": ["https://myregistry:5000"]
+}
+```
+
+and restart the Docker Engine.

@@ -30,7 +30,6 @@ This is a lab tutorial about Docker and Linux containers. It covers theoretical 
      * [Using custom Docker networks](./content/networks.md#using-custom-docker-networks)
      * [Inter Containers Communication](./content/networks.md#inter-containers-communication)
      * [Embedded DNS Service](./content/networks.md#embedded-dns-service)
-     * [MAC VLAN mode](./content/networks.md#mac-vlan-mode)
 
 
 6. [Swarm Mode](./content/swarm-mode.md)

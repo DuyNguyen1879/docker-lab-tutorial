@@ -139,63 +139,55 @@ Create the project directory and edit a text file called Dockerfile
 
 The Dockerfile will be like this
 ```
-# My HTTP Docker image
-# Version 1
-
+# My HTTP Docker image: version 1.2
 # Pull the CentOS 7.2 image from the Docker Hub registry
 FROM centos:7
-
-MAINTAINER Tom Cat
+MAINTAINER Tom Cat tom.cat@warnerbros.com
+LABEL Version 1.2
 USER root
-
-# Update packages list and install some useful tools
-RUN yum update -y
-
-# Add the httpd package
-RUN yum install -y httpd
-
-# Clean the yum cache
-RUN yum clean all
-
+EXPOSE 80
+# Update packages list and install the httpd package
+RUN yum update -y && yum install -y httpd && rm -rf /var/cache/yum
 # Set the Web Server name
 RUN echo ServerName apache.example.com >> /etc/httpd/conf/httpd.conf
-
-# Create an index.html file
-RUN echo Your Web server is successful > /var/www/html/index.html
+# Overwrite the default index.html page
+RUN echo 'Your Web server is successful!!!' > /var/www/html/index.html
+# Start the Apache web server application at runtime
+CMD ["/usr/sbin/apachectl", "-DFOREGROUND"]
 ```
 
 To build the image from the Dockerfile file, use the build option and identify the location of the Dockerfile file. In this case, the Dockerfile is in the current directory
 ```
-# docker build -t myapache:centos .
+# docker build -t myapache:1.2 .
 ```
 
 Check the new image has been created with name ``myapache`` and tag ``centos``
 ```
 # docker images
 REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
-myapache            centos              63d1feab2644        46 seconds ago      224.1 MB
+myapache            1.2                 63d1feab2644        46 seconds ago      224.1 MB
 centos              7                   8596123a638e        6 days ago          196.7 MB
 ```
 
 Start a container from that image and check it is working
 ```
-# docker run -d -p 80:80 --name myweb myapache:centos /usr/sbin/httpd -DFOREGROUND
+# docker run -d -p 80:80 --name myweb myapache:1.2
 # curl localhost:80
-Your Web server is successful
+Your Web server is successful!!!
 ```
 
 Tag the image
 ```
 # docker images
 REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
-myapache            centos              f297cdf1a74a        53 minutes ago      314.2 MB
+myapache            1.2 .               f297cdf1a74a        53 minutes ago      314.2 MB
 
-# docker tag myapache:centos kalise/myapache:latest
+# docker tag myapache:1.2 kalise/myapache:latest
 
 # docker images
 REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
 kalise/myapache     latest              f297cdf1a74a        55 minutes ago      314.2 MB
-myapache            centos              f297cdf1a74a        55 minutes ago      314.2 MB
+myapache            1.2                 f297cdf1a74a        55 minutes ago      314.2 MB
 ```
 
 By tagging images, you can add names to make more intuitive to understand what they contain. The Docker tagging command is, essentially, an alias to the image.
@@ -211,29 +203,21 @@ Docker can build images automatically by reading the instructions from a Dockerf
 Starting with a basic Docker file we are going to assemble a complete working image for an HTTP Web Server
 
 ```
-# My HTTP Docker image: version 1.0
-
+# My HTTP Docker image: version 1.3
 # Pull the CentOS 7.2 image from the Docker Hub registry
 FROM centos:7
-
 MAINTAINER Tom Cat tom.cat@warnerbros.com
-LABEL Version 1.0
+LABEL Version 1.3
 USER root
-
-# Update packages list and install some useful tools
-RUN yum update -y
-
-# Add the httpd package
-RUN yum install -y httpd
-
-# Clean the yum cache
-RUN yum clean all
-
+EXPOSE 80
+# Update packages list and install the httpd package
+RUN yum update -y && yum install -y httpd && rm -rf /var/cache/yum
 # Set the Web Server name
 RUN echo ServerName apache.example.com >> /etc/httpd/conf/httpd.conf
-
-# Create an index.html file
-RUN echo Your Web server is successful > /var/www/html/index.html
+# Overwrite the default index.html page
+RUN echo 'Your Web server is successful!!!' > /var/www/html/index.html
+# Start the Apache web server application at runtime
+CMD ["/usr/sbin/apachectl", "-DFOREGROUND"]
 ```
 
 The ``FROM`` statement sets the base image for subsequent instructions. A valid Dockerfile must have FROM as its first instruction. The image can be any valid image from the public or private repositories. In our case we are starting from a CentOS image as base image for our Web Server.
@@ -244,54 +228,13 @@ The ``LABEL`` statement labels the image with a user defined text string.
 
 The ``USER`` statement sets the user name or UID to use when running the image.
 
-The ``RUN`` statement executes any commands in a new layer on top of the current image and commit the results. The resulting committed image will be used for the next step in the Dockerfile. To avoid a neww layer to be added for each RUN statement, multiple RUN statements can be combined in a single instruction. To make the Dockerfile more readable, understandable, and maintainable, split long or complex RUN statements on multiple lines separated with backslashes. Basing on these suggestions, a new version of our Dockerfile may look like this:
+The ``RUN`` statement executes any commands in a new layer on top of the current image and commit the results. The resulting committed image will be used for the next step in the Dockerfile. To avoid a neww layer to be added for each ``RUN`` statement, multiple ``RUN`` statements can be combined in a single instruction. To make the Dockerfile more readable, understandable, and maintainable, split long or complex ``RUN`` statements on multiple lines separated with backslashes. 
 
-```
-# My HTTP Docker image: version 1.1
+To start containers in daemon mode, Docker introduce the ``EXPOSE`` command. The ``EXPOSE`` statement sets the container listen on the specified network ports at runtime. You can expose one port number and publish it externally to another host port number. In our case, the default port of the Apache daemon is set to port 80 or port 443. The ``CMD`` statement sets the the command (and its parameters) to be executed when running the image as a container. 
 
-# Pull the CentOS 7.2 image from the Docker Hub registry
-FROM centos:7
+Docker builds an image from a Dockerfile and a context. The build context consists of the files at a specified location PATH or URL. The PATH is a directory on your local filesystem. The URL is a the location of a Git repository. The ``COPY`` statement copies new files or directories from the source PATH location and adds them to the filesystem of the container at the destination. Multiple resource files may be specified but they must be relative to the source directory, i.e. the context of the build. 
 
-MAINTAINER Tom Cat tom.cat@warnerbros.com
-LABEL Version 1.1
-USER root
-
-# Update packages list and install the httpd package
-RUN yum update -y && yum install -y httpd && yum clean all
-
-# Set the Web Server name and create an index.html file
-RUN \
-echo ServerName apache.example.com >> /etc/httpd/conf/httpd.conf && \
-echo Your Web server is successful > /var/www/html/index.html
-```
-
-To start containers in daemon mode, Docker introduce the ``EXPOSE`` command. The EXPOSE statement sets the container listen on the specified network ports at runtime. You can expose one port number and publish it externally to another host port number. In our case, the default port of the Apache daemon is set to port 80 or port 443. The ``CMD`` statement is used to run the application contained by the image, along with any required parameter. The CMD instruction is recommended for any service-based image. A new version of our Dockerfile may be:
-```
-# My HTTP Docker image: version 1.2
-
-# Pull the CentOS 7.2 image from the Docker Hub registry
-FROM centos:7
-
-MAINTAINER Tom Cat tom.cat@warnerbros.com
-LABEL Version 1.2
-USER root
-EXPOSE 80
-
-# Update packages list and install the httpd package
-RUN yum update -y && yum install -y httpd && yum clean all
-
-# Set the Web Server name and create an index.html file
-RUN \
-echo ServerName apache.example.com >> /etc/httpd/conf/httpd.conf && \
-echo Your Web server is successful > /var/www/html/index.html
-
-# Start the Apache web server application at runtime
-CMD ["/usr/sbin/apachectl", "-DFOREGROUND"]
-```
-
-Docker builds an image from a Dockerfile and a context. The build context consists of the files at a specified location PATH or URL. The PATH is a directory on your local filesystem. The URL is a the location of a Git repository. The ``COPY`` statement copies new files or directories from the source PATH location and adds them to the filesystem of the container at the destination. Multiple resource files may be specified but they must be relative to the source directory, ie.e the context of the build. 
-
-For example, we want to set the default index.html page of our Apache web server to a custom index.html page. Put the custom page in the context of image build
+For example, we want to set the default ``index.html`` page of our Apache web server to a custom ``index.html`` page. Put the custom page in the context of image build
 ```
 # cd /root/httpd-centos
 # vi index.html
@@ -303,18 +246,18 @@ For example, we want to set the default index.html page of our Apache web server
 
 Change the above Dockerfile to be like this
 ```
-# My HTTP Docker image: version 1.3
+# My HTTP Docker image: version 1.4
 
 # Pull the CentOS 7.2 image from the Docker Hub registry
 FROM centos:7
 
 MAINTAINER Tom Cat tom.cat@warnerbros.com
-LABEL Version 1.3
+LABEL Version 1.4
 USER root
 EXPOSE 80
 
 # Update packages list and install the httpd package
-RUN yum update -y && yum install -y httpd && yum clean all
+RUN yum update -y && yum install -y httpd && rm -rf /var/cache/yum
 
 # Set the Web Server name
 RUN echo ServerName apache.example.com >> /etc/httpd/conf/httpd.conf
@@ -333,17 +276,17 @@ Change to the build context and build the image
 total 8
 -rw-r--r-- 1 root root 582 May 24 15:42 Dockerfile
 -rw-r--r-- 1 root root  67 May 24 16:09 index.html
-# docker build -t myapache:centos .
-# docker run -d -p 80:80 --name web myapache:centos
+# docker build -t myapache:1.4 .
+# docker run -d -p 80:80 --name web myapache:1.4
 # docker images
 REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
-myapache            latest              b5cfdf80a528        8 minutes ago       246.8 MB
+myapache            1.4 .               b5cfdf80a528        8 minutes ago       246.8 MB
 centos              7                   8596123a638e        6 days ago          196.7 MB
 ```
 
 Start a container based on that image and check it works
 ```
-# docker run -d -p 80:80 --name web myapache
+# docker run -d -p 80:80 --name web myapache:1.4
 # curl localhost
 <!DOCTYPE html>
 <html>
@@ -356,46 +299,6 @@ General guidelines
 1. Avoid installing unnecessary packages
 2. Run only one process per container
 3. Minimize the number of layers
-
-## Building C Applications
-In this example, we're going to create a simple docker image running a C application. This is only for demo purpouse.
-Move to the app directory and create your C program
-
-    mkdir mycapp
-    cd mycapp
-    vi hello.c
-    int main() {
-      printf("Hello Docker\n");
-    }
-
-Create a Dockerfile like the following
-
-    # A simple C application
-    # Pull a GCC image from the Docker Hub registry
-    FROM gcc:latest
-    MAINTAINER Tom Cat tom.cat@warnerbros.com
-    LABEL Version 1.0
-    USER root
-    COPY ./hello.c /usr/src/hello.c
-    WORKDIR /usr/src
-    # Compile the C application
-    RUN gcc -w hello.c -o hello
-    # Start the C application at runtime
-    CMD ["./hello"]
-
-Build your image
-
-    docker build -t capp:1.0 .
-    docker images
-    REPOSITORY      TAG                 IMAGE ID            CREATED              SIZE
-    capp            1.0                 70ab671e4cb1        14 seconds ago       1.49 GB
-
-Run the application
-
-    docker run -it capp:1.0
-    Hello Docker
-
-Please, note the size of 1.49 GB for the above image. This is because we compiled un image including the complete GCC envinronment. Absolutely, this is not the best way to build C based applications.
 
 ## Building Java Applications
 In this section, we're going to build a simple Hello World Java application.

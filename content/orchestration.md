@@ -3,9 +3,11 @@ The native Docker orchestration engine called **Swarm** lets to have a complete 
 
 Main goals accomplished by an orchestation system like Swarm are:
 
-  1. High Availability
-  2. Scaling
-  3. Load balancing
+  1. Infrastructure clustering  
+  2. High Availability
+  3. Scheduling
+  4. Load balancing
+  5. Network Isolation
 
 In this section, we are going to setup a simple three-nodes cluster based on Swarm.
 

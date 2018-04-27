@@ -2,7 +2,6 @@
 In this section, we'll walk through security topics for the docker engine.
 
   * [Securing the engine](#securing-the-engine)
-  * [Securing the cluster](#securing-the-cluster)
   * [User Namespaces](#user-namespaces)
 
 ## Securing the engine
@@ -214,48 +213,6 @@ Then source the file and connect the server
 
     source docker-tls.rc
     [~(tls)]# docker version
-
-
-## Securing the cluster
-By default, the swarm cluster is encrypted with AES-GCM. Authentication between nodes partecipating into the cluster is done with mutual TLS.
-
-When you create a swarm the docker node designates itself as a manager node. By default, the manager node generates a new Certificate Authority (CA) along with a key pair, made of public key ``swarm-node.crt`` and a private key ``swarm-node.key``, which are used to secure communications with other nodes joining the swarm. The certificates is rotated every 90 days.
-
-Certificates and keys are under ``/var/lib/docker/swarm/certificates/`` directory 
-
-    ll /var/lib/docker/swarm/certificates/
-    
-    -rw-r--r-- 1 root root 1376 Jul 14 19:00 swarm-node.crt
-    -rw------- 1 root root  302 Jul 14 19:00 swarm-node.key
-    -rw-r--r-- 1 root root  550 Jul 14 19:00 swarm-root-ca.crt
-
-Each time a new node joins the swarm, the manager issues a certificate to that node. The certificate contains a randomly generated node ID to identify the node under the certificate common name (CN) and the role under the organizational unit (OU). The node ID serves as secure node identity for the lifetime of the node in the current swarm.
-
-The manager node also generates two tokens to use when you join additional nodes to the swarm: one worker token and one manager token. Each token includes the digest of the root CA’s certificate and a randomly generated secret.
-
-To generate a manager token
-```
-[root@swarm00 ~]# docker swarm join-token manager
-To add a manager to this swarm, run the following command:
-
-    docker swarm join \
-    --token SWMTKN-1-0a1z3yz75jsin2rf5az5y6ylk8uihdwdb7nmxz0uvc9icnmbg2-dewdemfe3da4dq8aj18a7jnce \
-    192.168.2.60:2377
-```
-
-For a worker token
-```
-[root@swarm00 ~]# docker swarm join-token worker
-To add a worker to this swarm, run the following command:
-
-    docker swarm join \
-    --token SWMTKN-1-0a1z3yz75jsin2rf5az5y6ylk8uihdwdb7nmxz0uvc9icnmbg2-1ij50ku39k2q5nn0gmr5x6f6j \
-    192.168.2.60:2377
-```
-
-When a new node joins the swarm, the joining node uses the digest to validate the root CA certificate from the remote manager. The remote manager uses the secret to ensure the joining node is an approved node.
-
-
 
 ## User Namespaces
 In Linux, namespaces are essential to the functioning of containers as we know them. The user namespace is a tecnique to maps the UIDs and GIDs inside a container to the regular users and group in the host system.

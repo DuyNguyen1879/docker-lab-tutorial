@@ -9,7 +9,7 @@
 # Usage: ./gcloud-create-swarm-env.sh
 #
 
-NUM=12
+NUM=8
 
 REGION1=europe-west1
 ZONE1=europe-west1-c
@@ -50,7 +50,7 @@ do
   echo "Creating machines in subnet" $SUBNET
   for j in {0..2};
   do
-      NAME=swarm-user$(printf "%02.f" $i)-node$(printf "%02.f" $j)
+    NAME=docker-user$(printf "%02.f" $i)-node$(printf "%02.f" $j)
     ADDRESS=10.10.$(printf "%1.f" $i).1$(printf "%02.f" $j)
     echo "Creating instance" $NAME "having IP" $ADDRESS
     gcloud compute instances create $NAME \

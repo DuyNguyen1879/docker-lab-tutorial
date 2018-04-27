@@ -1,5 +1,6 @@
-# Swarm Mode
-Swarm Node lets to have a complete all-built-in Docker cluster solution including orchestrator of containers and multi host networking. 
+# Orchestration
+The native Docker orchestration engine called **Swarm** lets to have a complete all-built-in Docker cluster solution including orchestrator of containers and multi host networking. 
+
 Main goals accomplished by an orchestation system like Swarm are:
 
   1. High Availability

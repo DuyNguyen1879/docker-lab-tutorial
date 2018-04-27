@@ -92,16 +92,8 @@ Create the configuration file ``server-csr.json`` for server certificate signing
 {
   "CN": "docker-engine",
   "hosts": [
-    "swarm00",
-    "swarm01",
-    "swarm02",
-    "swarm03",
-    "swarm04",
+    "docker",
     "10.10.10.60",
-    "10.10.10.61",
-    "10.10.10.62",
-    "10.10.10.63",
-    "10.10.10.64",
     "127.0.0.1",
     "localhost"
   ],
@@ -123,13 +115,11 @@ Create the key pair
        -profile=custom \
        server-csr.json | cfssljson -bare server
 
-This will produce the ``server.pem`` certificate file containing the public key and the ``server-key.pem`` file, containing the private key. Move the server's keys pair as well as the ``ca.pem`` file to a given location on server, e.g.``/etc/docker/ssl`` where the docker engine is running
+This will produce the ``server.pem`` certificate file containing the public key and the ``server-key.pem`` file, containing the private key. Move the server's keys pair as well as the ``ca.pem`` file to a given location on the docker server, e.g.``/etc/docker/ssl`` where the docker engine is running
     
-    for host in swarm00 swarm01 swarm02 swarm03 swarm04; do
-      scp ca.pem ${host}:/etc/docker/ssl/ca.pem
-      scp server.pem ${host}:/etc/docker/ssl/server-cert.pem
-      scp server-key.pem ${host}:/etc/docker/ssl/server-key.pem
-    done
+      scp ca.pem docker:/etc/docker/ssl/ca.pem
+      scp server.pem docker:/etc/docker/ssl/server-cert.pem
+      scp server-key.pem docker:/etc/docker/ssl/server-key.pem
 
 We'll instruct the docker engine to use these files. To improve secutity, make sure the private key file will be safe, e.g. changing the file permissions.
 

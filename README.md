@@ -32,17 +32,17 @@ This is a lab tutorial about Docker and Linux containers. It covers theoretical 
      * [Embedded DNS Service](./content/networks.md#embedded-dns-service)
 
 
-6. [Swarm Mode](./content/swarm-mode.md)
-     * [Setup the Swarm](./content/swarm-mode.md#setup-the-swarm)
-     * [Swarm Networking](./content/swarm-mode.md#swarm-networking)
-     * [Deploying Services](./content/swarm-mode.md#deploying-services)
-     * [Scaling Services](./content/swarm-mode.md#scaling-services)
-     * [Routing Mesh](./content/swarm-mode.md#routing-mesh)
-     * [Service Failover](./content/swarm-mode.md#service-failover)
-     * [Service Networks](./content/swarm-mode.md#service-networks)
-     * [Service Discovery](./content/swarm-mode.md#service-discovery)
-     * [Service Load Balancing](./content/swarm-mode.md#service-load-balancing)
-     * [High Availability](./content/swarm-mode.md#high-availability)
+6. [Orchestration](./content/orchestration.md)
+     * [Setup the Swarm](./content/orchestration.md#setup-the-swarm)
+     * [Swarm Networking](./content/orchestration.md#swarm-networking)
+     * [Deploying Services](./content/orchestration.md#deploying-services)
+     * [Scaling Services](./content/orchestration.md#scaling-services)
+     * [Routing Mesh](./content/orchestration.md#routing-mesh)
+     * [Service Failover](./content/orchestration.md#service-failover)
+     * [Service Networks](./content/orchestration.md#service-networks)
+     * [Service Discovery](./content/orchestration.md#service-discovery)
+     * [Service Load Balancing](./content/orchestration.md#service-load-balancing)
+     * [High Availability](./content/orchestration.md#high-availability)
 
 
 7. [Applications Deployment](./content/applications.md)
@@ -57,7 +57,6 @@ This is a lab tutorial about Docker and Linux containers. It covers theoretical 
 
 8. [Security](./content/security.md)
      * [Securing the engine](./content/security.md#securing-the-engine)
-     * [Securing the cluster](./content/security.md#securing-the-cluster)
      * [User Namespaces](./content/security.md#user-namespaces)
 
 

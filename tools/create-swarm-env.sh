@@ -6,7 +6,7 @@
 # Make sure the gcloud cli utility is installed and
 # initialized with proper credentials
 #
-# Usage: ./gcloud-create-swarm-env.sh
+# Usage: ./gcloud-create-docker-env.sh
 #
 
 NUM=8
@@ -15,22 +15,22 @@ REGION1=europe-west1
 ZONE1=europe-west1-c
 REGION2=europe-west2
 ZONE2=europe-west2-c
-NETWORK=swarm
+NETWORK=docker
 IMAGE=projects/noverit-168407/global/images/swarm-node
 ROLE=swarm-node
 MACHINE_TYPE=n1-standard-1
-TAG=swarm
+TAG=docker
 SCOPES=default,compute-ro,service-control,service-management,logging-write,monitoring-write,storage-ro
 FIREWALL_RULES=tcp:22,tcp:443,tcp:80,tcp:8000-8100,tcp:9090
 
 # Create the network
 echo "Creating the network" $NETWORK
-gcloud compute networks create $NETWORK --mode=custom
+gcloud compute networks create $NETWORK --subnet-mode=custom
 
 # Create firewall rules
 echo "Creating firewall rules"
-gcloud compute firewall-rules create swarm-allow-internal --network $NETWORK --allow tcp,udp,icmp  --source-ranges 10.10.0.0/16
-gcloud compute firewall-rules create swarm-allow-external --network $NETWORK --allow $FIREWALL_RULES
+gcloud compute firewall-rules create docker-allow-internal --network $NETWORK --allow tcp,udp,icmp  --source-ranges 10.10.0.0/16
+gcloud compute firewall-rules create docker-allow-external --network $NETWORK --allow $FIREWALL_RULES
 
 # Create Subnets and Instances
 REGION=$REGION1
@@ -39,7 +39,7 @@ VMCOUNT=0
 VMLIMIT=18
 for i in $(seq -w 0 $NUM);
 do
-  SUBNET=$REGION-swarm-subnet-$(printf "%02.f" $i);
+  SUBNET=$REGION-docker-subnet-$(printf "%02.f" $i);
   echo "Creating subnet" $SUBNET "in zone" $REGION
   RANGE=10.10.$(printf "%1.f" $i).0/24
   gcloud compute networks subnets create $SUBNET \

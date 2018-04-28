@@ -197,7 +197,7 @@ Updates configuration define how the service should be updated. This is useful f
 For example, this updates the vote service with a different image
 ```
 [root@swarm00 ~]# docker service update \
-   --image docker.io/kalise/flask-vote-app:latest:2.4 myapp_vote
+   --image docker.io/kalise/flask-vote-app:2.4 myapp_vote
 ```
 
 The swarm stops the old containers running latest image and replaced with the specified image. The update is made one container at time. The following options configure the update strategy:

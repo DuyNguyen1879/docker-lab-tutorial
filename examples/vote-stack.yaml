@@ -2,7 +2,7 @@ version: "3"
 services:
 
   vote:
-    image: docker.io/kalise/flask-vote-app:latest
+    image: docker.io/kalise/vote-app:latest
     environment:
       DB_TYPE: mysql
       DB_HOST: mysql

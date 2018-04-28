@@ -431,52 +431,29 @@ Check HTTPS is working
     </html>
 
 ### Secrets for sharing password
-As example of passing passwords with secrets, consider the vote app we used before. The yaml stack definition file can be enhanced by adding two secrets
+In this example, we are using secrets to pass credentials to a MySQL application.
+  
+First, create secrets
+  
+  ```bash
+  echo "Th1s1sA5tr0nGpa55w0rD" | docker secret create DB_ROOT_PASSWORD -
+  ```
+  
+then deploy the application stacks
+  
+  ```bash
+  docker stack deploy -c mysql-stack-with-secrets.yaml myapp
+  ```
+  
+Install a MySQL client and connect to the MySQL server as root user
+  
+  ```bash
+  sudo yum istall -y mysql
+  mysql -h <host_address> -u root -p
+  Enter password: 
+  Welcome to the MariaDB monitor.  Commands end with ; or \g.
+  ...
+  ```
 
-    secrets:
-       db_password:
-         file: db_password.txt
-       db_root_password:
-         file: db_root_password.txt
-
-The first secret will used for the MySQL application db password as requested by the MySQL and the Vote containers. The second secret will be used by the MySQL container only.
-
-```yaml
-...
-  vote:
-    image: docker.io/kalise/flask-vote-app:latest
-    environment:
-      DB_TYPE: mysql
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_NAME: votedb
-      DB_USER: user
-      DB_PASS: /run/secrets/db_password
-...
-  mysql:
-    image: mysql/mysql-server:latest
-    environment:
-      MYSQL_ROOT_PASSWORD: /run/secrets/db_root_password
-      #MYSQL_RANDOM_ROOT_PASSWORD: yes
-      MYSQL_DATABASE: votedb
-      MYSQL_USER: user
-      MYSQL_PASSWORD: /run/secrets/db_password
-...
-```
-
-As we see, there is no needs to code any password in the stack definition. To pass passwords to the containers it is only required to create the passwords as text files and start the application
-
-    echo Th1s1sA5tr0nGpa55w0rD! > db_password.txt
-    echo Th1s1sA5tr0nG%ooTpa55w0rD! > db_root_password.txt
-
-    docker stack deploy -c vote-stack-secrets.yaml myapp
-
-Once started, the swarm will encript these password and distribute securely on all the manager nodes. The running containers will access these passwords securely with the strong encryption provided by the swarm.
-
-Containers will use the secrets from their secret location ``/run/secrets`` to polulate the env variables. The user can now remove the text files containing the password
-
-    rm -rf db_password.txt
-    rm -rf db_root_password.txt
-
-Note we have to update to ``version: "3.1"`` the stack file to support secrets. The updated stack file can be found [here](../examples/vote-stack-secrets.yaml).
+Note we have to update to ``version: "3.1"`` the stack file to support secrets.
 
